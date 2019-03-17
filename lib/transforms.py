@@ -5,7 +5,8 @@
 import numpy as np
 import math
 from scipy.signal import decimate, resample
-from _signal import *
+from lib._signal import *
+from lib.tools import *
 
 ##########################################################################################
 # FREQ DOMAIN TRANSFORMS
@@ -19,10 +20,10 @@ def simulate_tf_on_signal(signal, tf, autocompute_fd=False, verbose=True, *args,
         signal.fd = np.fft.fft(signal.td)
     v_tf = np.vectorize(tf, otypes=[np.complex])
     if verbose:
-        print "\n* Applying transfer function to signal."
+        print("\n* Applying transfer function to signal.")
     new_fd = np.zeros(signal.samples, dtype=np.complex)
-    new_fd[:signal.samples/2] = v_tf(np.arange(signal.samples/2, dtype=np.complex)*signal.fbin)*signal.fd[:signal.samples/2]
-    new_fd[signal.samples/2:] = v_tf((np.arange(signal.samples/2, dtype=np.complex)-signal.samples/2)*signal.fbin)*signal.fd[signal.samples/2:]
+    new_fd[:int(signal.samples/2)] = v_tf(np.arange(int(signal.samples/2), dtype=np.complex)*signal.fbin)*signal.fd[:int(signal.samples/2)]
+    new_fd[int(signal.samples/2):] = v_tf((np.arange(int(signal.samples/2), dtype=np.complex)-signal.samples/2)*signal.fbin)*signal.fd[int(signal.samples/2):]
     return make_signal(fd=new_fd, fs = signal.fs, bits=signal.bits, signed=signal.signed, autocompute_fd=autocompute_fd, name=signal.name, verbose=False, *args, **kwargs)
 
 

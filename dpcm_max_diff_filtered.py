@@ -26,7 +26,7 @@ plt.show()
 FREQS = np.linspace(20, 4000, 191)
 max_diff_by_freq = []
 for freq in FREQS:
-    print freq
+    print(freq)
     tf = butterworth_tf(fc=freq)
     filt_signal = simulate_tf_on_signal(signal, tf=tf)
     max_diff_by_freq.append(np.amax(np.abs(filt_signal.td)))

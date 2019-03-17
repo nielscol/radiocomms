@@ -25,10 +25,10 @@ class Signal:
         self.name = name
 
 def make_signal(td=[], fd=[], fs=None, bits=None, signed=None, name="", autocompute_fd=False, verbose=False, *args, **kwargs):
-    '''Method to assist with creation of Signal objects.
+    """Method to assist with creation of Signal objects.
     * Will not automatically compute fd = fft(td) unless autocompute_fd is set. This is to save time
     when not needed.
-    '''
+    """
     if any(td) and type(td) == list:
         if type(td[0]) == complex:
             td = np.array(td, dtype=np.complex)
@@ -76,8 +76,8 @@ def make_signal(td=[], fd=[], fs=None, bits=None, signed=None, name="", autocomp
     return Signal(td, fd, fs, samples, bits, signed, fbin, name)
 
 def wav_to_signal(file_name, autocompute_fd=False, verbose=True, *args, **kwargs):
-    '''import .wav file and create Signal object for it
-    '''
+    """ import .wav file and create Signal object for it
+    """
     fs, data = wavfile.read(file_name)
     if data.dtype == np.int16:
         bits = 16
@@ -106,8 +106,8 @@ def save_signal_to_wav(signal, file_name, dtype=np.int16, verbose=True, *args, *
     wavfile.write(file_name, rate=signal.fs, data=np.array(data, dtype=dtype))
 
 def freq_to_index(signal, freq, verbose=True, *args, **kwargs):
-    '''computes index of bin in FFT(Signal.td) corresponding provided frequency
-    '''
+    """ computes index of bin in FFT(Signal.td) corresponding provided frequency
+    """
     if not any(signal.fd):
         print("\n* Frequency domain indexing requested, computing frequency domain data first. This may be slow...")
         signal.fd = np.fft.fft(signal.td)
@@ -119,7 +119,7 @@ def freq_to_index(signal, freq, verbose=True, *args, **kwargs):
         n = int(round(freq/signal.fbin)) + signal.samples
     else:
         n = signal.samples - 1
-    return n
+    return int(n)
 
 def generate_quantized_tone(tone_freq, fs, samples, bits, signed=True, noise_lsbs=0.0, autocompute_fd=False, verbose=True, *args, **kwargs):
     amplitude = (2**bits - 1)/2.0

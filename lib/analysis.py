@@ -3,7 +3,7 @@
 """
 
 import numpy as np
-from _signal import *
+from lib._signal import *
 
 DB_PER_BIT = 6.02
 
@@ -15,7 +15,7 @@ def measure_in_band_sfdr(signal, bw=1000, verbose=True, *args, **kwargs):
         signal.fd = np.fft.fft(signal.td)
     bw_index = freq_to_index(signal, bw)
     signal_max = 20*np.log10(np.amax(np.abs(signal.fd[:bw_index])))
-    noise_max = 20*np.log10(np.amax(np.abs(signal.fd[bw_index:signal.samples/2])))
+    noise_max = 20*np.log10(np.amax(np.abs(signal.fd[bw_index:int(signal.samples/2)])))
     sfdr_db = signal_max - noise_max
     if verbose:
         print("\n* In band SFDR = %0.2f dB"%(sfdr_db))
@@ -32,7 +32,7 @@ def measure_sfdr(signal, tone_freq=1000, tone_bw=10, verbose=True, *args, **kwar
     tone_index = freq_to_index(signal, abs(tone_freq))
     bw_delta = int(round((tone_bw / signal.fbin)/2))
     signal_max = 20*np.log10(np.amax(np.abs(signal.fd[tone_index-bw_delta:tone_index+bw_delta])))
-    noise_max = 20*np.log10(np.amax(np.concatenate((np.abs(signal.fd[:tone_index-bw_delta]), np.abs(signal.fd[tone_index+bw_delta:signal.samples/2])))))
+    noise_max = 20*np.log10(np.amax(np.concatenate((np.abs(signal.fd[:tone_index-bw_delta]), np.abs(signal.fd[tone_index+bw_delta:int(signal.samples/2)])))))
     sfdr_db = signal_max - noise_max
     if verbose:
         print("\n* SFDR = %0.2f dB"%(sfdr_db))
@@ -48,7 +48,7 @@ def measure_in_band_snr(signal, bw=1000, verbose=True, *args, **kwargs):
         signal.fd = np.fft.fft(signal.td)
     bw_index = freq_to_index(signal, bw)
     signal_power = 10*np.log10(np.sum(np.abs(signal.fd[:bw_index])**2))
-    noise_power = 10*np.log10(np.sum(np.abs(signal.fd[bw_index:signal.samples/2])**2))
+    noise_power = 10*np.log10(np.sum(np.abs(signal.fd[bw_index:int(signal.samples/2)])**2))
     snr_db = signal_power-noise_power
     n_bits = snr_db/DB_PER_BIT
     if verbose:
@@ -66,7 +66,7 @@ def measure_sndr(signal, tone_freq=1000, tone_bw=10, verbose=True, *args, **kwar
     tone_index = freq_to_index(signal, abs(tone_freq))
     bw_delta = int(round((tone_bw / signal.fbin)/2))
     signal_power = 10*np.log10(np.sum(np.abs(signal.fd[tone_index-bw_delta:tone_index+bw_delta])**2))
-    noise_power = 10*np.log10(np.sum(np.abs(signal.fd[:tone_index-bw_delta])) + np.sum(np.abs(signal.fd[tone_index+bw_delta:signal.samples/2])**2))
+    noise_power = 10*np.log10(np.sum(np.abs(signal.fd[:tone_index-bw_delta])) + np.sum(np.abs(signal.fd[tone_index+bw_delta:int(signal.samples/2)])**2))
     sndr_db = signal_power - noise_power
     n_bits = (sndr_db-1.76) / DB_PER_BIT
     if verbose:
