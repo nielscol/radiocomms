@@ -4,7 +4,9 @@
 
 import numpy as np
 import math
-from scipy.signal import decimate, resample
+from scipy.signal import decimate, resample, butter, lfilter, freqz, sawtooth
+from scipy import signal
+from scipy.special import erfinv
 from lib._signal import *
 from lib.tools import *
 
@@ -40,6 +42,18 @@ def convert_to_bitstream(signal, autocompute_fd=False, verbose=True, *args, **kw
 ##########################################################################################
 
 
+def butter_lowpass(cutoff, fs, order=5):
+    nyq = 0.5 * fs
+    normal_cutoff = cutoff / nyq
+    b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    return b, a
+
+def butter_lowpass_filter(signal, cutoff, order=5, autocompute_fd=False, verbose=True, *args, **kwargs):
+    print(signal.td.dtype)
+    b, a = butter_lowpass(cutoff, signal.fs, order=order)
+    filt_td = np.array(lfilter(b, a, signal.td), dtype=signal.td.dtype)
+    return make_signal(td=filt_td, fs = signal.fs, bitrate=signal.bitrate, bits=signal.bits, signed=signal.signed, autocompute_fd=autocompute_fd, name=signal.name, verbose=False, *args, **kwargs)
+
 def simulate_tf_on_signal(signal, tf, autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Simulate effect of transfer function on signal with hermitian transfer function
     """
@@ -72,6 +86,13 @@ def remove_dc(signal, autocompute_fd=False, verbose=True, *args, **kwargs):
 def add_noise(signal, rms, autocompute_fd=False, verbose=True, *args, **kwargs):
     noise = np.random.normal(0.0, rms, len(signal.td))
     return make_signal(td=signal.td+noise, fs = signal.fs, bits=signal.bits, signed=signal.signed, bitrate=signal.bitrate, autocompute_fd=autocompute_fd, name=signal.name+"_added_noise", verbose=False, *args, **kwargs)
+
+def gaussian_fade(signal, f, autocompute_fd=False, verbose=True, *args, **kwargs):
+    t = np.arange(len(signal.td))/float(signal.fs)
+    triangle = sawtooth(2*np.pi*f*t, 0.5)
+    fading = np.sqrt(2)*erfinv(0.9973*triangle)
+    fading = fading*(0.9/3.0) + 1.0
+    return make_signal(td=signal.td*fading, fs = signal.fs, bits=signal.bits, signed=signal.signed, bitrate=signal.bitrate, autocompute_fd=autocompute_fd, name=signal.name+"_added_noise", verbose=False, *args, **kwargs)
 
 
 def scale_to_fill_range(signal, autocompute_fd=False, verbose=True, *args, **kwargs):
@@ -136,17 +157,24 @@ def filter_and_downsample(signal, n, order=None, ftype="iir", autocompute_fd=Fal
         bitrate = signal.bits*signal.fs/float(n)
     else:
         bitrate = signal.bitrate
-    td = np.array(np.rint(decimate(x=signal.td, q=n, n=order, ftype=ftype)), dtype=np.int32)
+    if signal.td.dtype in [np.int8, np.int16, np.int32, np.int64]:
+        td = np.array(np.rint(decimate(x=signal.td, q=n, n=order, ftype=ftype)), dtype=np.int32)
+    else:
+        td = decimate(x=signal.td, q=n, n=order, ftype=ftype)
     return make_signal(td=td, fs = signal.fs/float(n), bits=signal.bits, bitrate=bitrate, signed=signal.signed, autocompute_fd=autocompute_fd, name=signal.name +"-filtdecim", verbose=verbose, *args, **kwargs)
 
 def fft_downsample(signal, n, adjust_bitrate=False, autocompute_fd=False, verbose=True, *args, **kwargs):
+    dtype = signal.td.dtype
     if verbose:
         print("\n* FFT downsampling %s by factor %d."%(signal.name, n))
     if adjust_bitrate:
         bitrate = signal.bits*signal.fs/float(n)
     else:
         bitrate = signal.bitrate
-    td = np.array(np.rint(resample(signal.td, num = int(round(signal.samples/float(n))))) ,dtype=np.int32)
+    if dtype in [np.int8, np.int16, np.int32, np.int64]:
+        td = np.array(np.rint(resample(signal.td, num = int(round(signal.samples/float(n))))) ,dtype=np.int32)
+    else:
+        td = np.array(resample(signal.td, num = int(round(signal.samples/float(n)))), dtype=dtype)
     return make_signal(td=td, fs = signal.fs/float(n), bits=signal.bits, bitrate=bitrate, signed=signal.signed, autocompute_fd=autocompute_fd, name=signal.name +"-fftdecim", verbose=verbose, *args, **kwargs)
 
 def no_filter_downsample(signal, n, adjust_bitrate=False, autocompute_fd=False, verbose=True, *args, **kwargs):

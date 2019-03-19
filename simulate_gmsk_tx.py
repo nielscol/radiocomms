@@ -20,6 +20,9 @@ N_BITS = 1000
 BIT_RATE = 64000 + 2400
 OVERSAMPLING = 100
 
+BT = 0.3
+PULSE_SPAN = 4
+
 SPECTRAL_EFF = 1.0 # bits/s/Hz
 BW = BIT_RATE/(SPECTRAL_EFF*2.0) # theoretical signal bandwidth
 CARRIER = 20.0*BW
@@ -29,26 +32,47 @@ message = generate_random_bitstream(length=N_BITS, bitrate=BIT_RATE)
 msk_i, msk_q = generate_msk_baseband(message, OVERSAMPLING)
 msk_rf = upconvert_baseband(CARRIER, msk_i, msk_q)
 
-gmsk_i, gmsk_q = generate_gmsk_baseband(message, OVERSAMPLING, bt=0.3, pulse_span=4)
+gmsk_i, gmsk_q = generate_gmsk_baseband(message, OVERSAMPLING, bt=BT, pulse_span=PULSE_SPAN)
 gmsk_rf = upconvert_baseband(CARRIER, gmsk_i, gmsk_q)
 
-plt.figure(0)
+plt.subplot(2,2,1)
 plot_constellation_density(gmsk_i, gmsk_q)
-plt.figure(1)
+plt.subplot(2,2,2)
 plot_iq_phase_mag(gmsk_i, gmsk_q)
-plt.figure(2)
+plt.subplot(2,2,3)
 plot_phase_histogram(gmsk_i, gmsk_q)
 
-msk_rf = add_noise(msk_rf, rms=0.01)
-gmsk_rf = add_noise(gmsk_rf, rms=0.01)
+msk_rf = add_noise(msk_rf, rms=0.05)
+gmsk_rf = add_noise(gmsk_rf, rms=0.05)
 
 #plt.figure(0)
 #plot_td(gmsk_rf)
 #plt.show()
 #plt.figure(1)
-plt.figure(3)
+plt.subplot(2,2,4)
 plot_fd(msk_rf)
 plot_fd(gmsk_rf)
 plt.show()
 
+gmsk_rf = gaussian_fade(gmsk_rf, f = 1000)
 
+n = int(round(gmsk_rf.fs/float(gmsk_i.fs)))
+rx_i, rx_q = downconvert_rf(CARRIER, gmsk_rf)
+#downsample to original IQ rate
+rx_i = filter_and_downsample(rx_i, n=n)
+rx_q = filter_and_downsample(rx_q, n=n)
+
+rx_i = butter_lowpass_filter(rx_i, cutoff = 2.0*BW)
+rx_q = butter_lowpass_filter(rx_q, cutoff = 2.0*BW)
+plt.subplot(2,2,1)
+plot_constellation_density(rx_i, rx_q)
+plt.subplot(2,2,2)
+plot_iq_phase_mag(rx_i, rx_q)
+plt.subplot(2,2,3)
+plot_phase_histogram(rx_i, rx_q)
+
+demodulated = demodulate_gmsk(rx_i, rx_q, OVERSAMPLING, BT, PULSE_SPAN)
+plt.subplot(2,2,4)
+plot_td(demodulated)
+
+plt.show()

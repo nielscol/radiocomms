@@ -13,6 +13,7 @@ def plot_td(signal, verbose=True, label="", *args, **kwargs):
     plt.xlabel("Time [s]")
     plt.grid()
     plt.plot(times, signal.td, label=signal.name)
+    plt.title("Time domain")
 
 def plot_fd(signal, log=True, label="", verbose=True, *args, **kwargs):
     if not any(signal.fd): # freq. domain not calculated
@@ -33,6 +34,7 @@ def plot_fd(signal, log=True, label="", verbose=True, *args, **kwargs):
             print("\tFFT - Magnitude")
         plt.ylabel("FFT(Signal) [magnitude]")
         plt.plot(freqs, np.abs(np.fft.fftshift(signal.fd)), label = label)
+    plt.title("Power Spectral Density")
     plt.legend()
 
 def plot_constellation(i, q, verbose=True, label="", *args, **kwargs):
@@ -46,6 +48,7 @@ def plot_constellation(i, q, verbose=True, label="", *args, **kwargs):
     plt.grid()
     plt.xlabel("I")
     plt.ylabel("Q")
+    plt.title("IQ Constellation")
     plt.legend()
 
 def plot_iq_phase_mag(i, q, verbose=True, label="", *args, **kwargs):
@@ -56,8 +59,12 @@ def plot_iq_phase_mag(i, q, verbose=True, label="", *args, **kwargs):
     times = np.arange(i.samples)/float(i.fs)
     plt.grid()
     plt.xlabel("Time [s]")
-    plt.plot(times, np.angle(i.td+1j*q.td), label=label+" Phase")
+    print(type(q.td),type(i.td))
+    print(q.td.dtype, i.td.dtype)
+    print(q.td.shape, i.td.shape)
+    plt.plot(times, np.arctan2(q.td, i.td), label=label+" Phase")
     plt.plot(times, np.hypot(i.td, q.td), label=label+" Magnitude")
+    plt.title("IQ Phase and Magnitude")
     plt.legend()
 
 def plot_phase_histogram(i, q, verbose=True, label="", *args, **kwargs):
@@ -65,9 +72,10 @@ def plot_phase_histogram(i, q, verbose=True, label="", *args, **kwargs):
         print("\n* Plotting IQ signal phase histrogram")
         print("\tI.name = %s"%i.name)
         print("\tQ.name = %s"%q.name)
-    plt.hist(np.angle(i.td+1j*q.td), bins=128, density=True, label=label)
+    plt.hist(np.arctan2(q.td, i.td), bins=128, density=True, label=label)
     plt.xlabel("IQ Phase")
     plt.ylabel("Density")
+    plt.title("IQ Phase Histrogram")
     plt.legend()
 
 def iq_to_coordinate(i, q, ax_dim):
@@ -88,3 +96,4 @@ def plot_constellation_density(i, q, verbose=True, ax_dim=128, label="", *args, 
     plt.imshow(np.sqrt(im), cmap="inferno", interpolation=None)
     ax = plt.gca()
     ax.set_aspect(1.0)
+    plt.title("IQ Constellation")

@@ -95,3 +95,21 @@ def upconvert_baseband(carrier_f, i=None, q=None, amplitude=1.0, auto_upsample=T
     rf = amplitude*(np.cos(2*pi*carrier_f*time)*_i - np.sin(2*pi*carrier_f*time)*_q)
 
     return make_signal(td=rf, fs=fs*interp_factor, bitrate=bitrate, name=name+"_upconverted", autocompute_fd=autocompute_fd, verbose=False)
+
+def downconvert_rf(carrier_f, rf, name="", autocompute_fd=False, verbose=True, *args, **kwargs):
+    time = np.arange(len(rf.td))/float(rf.fs)
+    i = np.cos(2*pi*carrier_f*time)*rf.td
+    q = np.sin(2*pi*carrier_f*time)*rf.td
+    #plt.plot(rf.td)
+    #plt.plot(np.cos(2*pi*carrier_f*time))
+    #plt.plot(i)
+    #plt.show()
+    i_sig = make_signal(td=i, fs=rf.fs, bitrate=rf.bitrate/2, name=name+"_downconverted", autocompute_fd=autocompute_fd, verbose=False)
+    q_sig = make_signal(td=q, fs=rf.fs, bitrate=rf.bitrate/2, name=name+"_downconverted", autocompute_fd=autocompute_fd, verbose=False)
+
+    return i_sig, q_sig
+
+def demodulate_gmsk(i, q, oversampling, bt, pulse_span, name="", autocompute_fd=False, verbose=True, *args, **kwargs):
+    demod_td = (2.0/pi)*oversampling*np.diff(np.unwrap(np.arctan2(q.td,i.td)))
+    return make_signal(td=demod_td, fs=i.fs, bitrate=i.bitrate+q.bitrate, name=name+"_gmsk_demodulated", autocompute_fd=autocompute_fd, verbose=False)
+
