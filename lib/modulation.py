@@ -131,9 +131,12 @@ def demodulate_gmsk(i, q, oversampling, name="", autocompute_fd=False, verbose=T
     demod_td = (2.0/pi)*oversampling*np.diff(np.unwrap(np.arctan2(q.td,i.td)))
     return make_signal(td=demod_td, fs=i.fs, bitrate=i.bitrate+q.bitrate, name=name+"_gmsk_demodulated", autocompute_fd=autocompute_fd, verbose=False)
 
-def rx_filter(signal, fir_taps, oversampling):
+def rx_filter(signal, fir_taps, oversampling, remove_extra=True):
     # Make GMSK pulse shape
     filt_td = np.convolve(signal.td, fir_taps, mode="full")/float(oversampling)
+    if remove_extra:
+        filt_td = filt_td[int(len(fir_taps)/2):]
+        filt_td = filt_td[:len(signal.td)]
     return make_signal(td=filt_td, fs=signal.fs, bitrate=signal.bitrate, name=signal.name+"_matched_filter", autocompute_fd=False, verbose=False)
 
 

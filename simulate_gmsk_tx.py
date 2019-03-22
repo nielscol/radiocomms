@@ -9,7 +9,7 @@ from lib.gmsk_rx_filter import gmsk_rx_filter
 
 #gaussian_to_raised_cosine(0.3, 16, 4)
 
-N_BITS = 1000
+N_BITS = 5000
 BIT_RATE = 64000 + 2400
 OVERSAMPLING = 16
 
@@ -39,8 +39,8 @@ plot_iq_phase_mag(gmsk_i, gmsk_q)
 plt.subplot(2,2,3)
 plot_phase_histogram(gmsk_i, gmsk_q)
 
-msk_rf = add_noise(msk_rf, rms=0.01)
-gmsk_rf = add_noise(gmsk_rf, rms=0.01)
+msk_rf = add_noise(msk_rf, rms=0.1)
+gmsk_rf = add_noise(gmsk_rf, rms=0.1)
 
 #plt.figure(0)
 #plot_td(gmsk_rf)
@@ -82,8 +82,13 @@ demod_filt = rx_filter(demodulated, fir_taps, OVERSAMPLING)
 #plot_td(demodulated)
 #plt.plot(_fir_taps)
 fir = make_signal(td=fir_taps, fs=demodulated.fs)
-plot_fd(fir)
+#plot_fd(fir)
+#plt.show()
+plot_fd(demod_filt)
+plot_fd(demodulated)
 plt.show()
-plot_td(demod_filt)
-plot_td(demodulated)
+plt.figure(1)
+line_eye(demod_filt)
+plt.figure(2)
+line_eye(demodulated)
 plt.show()

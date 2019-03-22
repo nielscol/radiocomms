@@ -282,7 +282,7 @@ def besseli0(z):
 #v_gmsk_pulse = np.vectorize(gmsk_pulse, otypes=[float])
 
 #oversampling=16
-#pulse_span=8
+#pulse_span=64
 #bt=0.3
 # Make GMSK pulse shape
 #pulse_len = int(oversampling*pulse_span)
@@ -293,6 +293,11 @@ def besseli0(z):
 #pulse_shape *= pi/(2.0*sum(pulse_shape))
 #tx_filt = gmsk_tx_filter(16, pulse_span, 0.3, 0.0)
 #rx_filt = gmsk_rx_filter(16, pulse_span, 0.3, 0.0)
+#composite = np.convolve(tx_filt, rx_filt, mode="full")
+#plt.plot(tx_filt)
+#plt.plot(rx_filt)
+#plt.plot(20*np.log10(np.abs(np.fft.fftshift(np.fft.fft(composite)))))
+#plt.show()
 #print(sum(pulse_shape), sum(tx_filt))
 #plt.plot(pulse_shape, label="_tx")
 #plt.plot(rx_filt, label="rx")

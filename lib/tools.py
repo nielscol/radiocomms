@@ -27,19 +27,23 @@ def timer(func):
 def sinx_x(x):
     return 1.0 if x==0 else sin(pi*x)/(pi*x)
 v_sinx_x = np.vectorize(sinx_x, otypes=[float])
-
+import matplotlib.pyplot as plt
 @timer
-def sinx_x_interp(x, factor, span):
+def sinx_x_interp(x, factor, span, remove_extra=True):
     # make sinx_x pulse shape
     fir_len = int(factor*span)
-    t = (np.arange(fir_len)-fir_len/2)/float(factor)
-    pulse_shape = v_sinx_x(t)
-    pulse_error = np.sum(pulse_shape)-factor
-    pulse_shape -= pulse_error/float(fir_len)
+    if fir_len % 2 == 0:
+        fir_len += 1
+    t = (np.arange(fir_len)/float(factor)-span/2)
+    fir = v_sinx_x(t)
+    fir *= factor/float(sum(fir))
     # upsample signal and apply pulse shape through convolution
     upsampled = np.zeros(len(x)*factor)
     upsampled[np.arange(len(x))*factor] = x
-    interpolated = np.convolve(upsampled, pulse_shape, mode="full")
+    interpolated = np.convolve(upsampled, fir, mode="full")
+    if remove_extra:
+        interpolated = interpolated[int(factor*span/2):]
+        interpolated = interpolated[:len(x)*factor]
     return interpolated
 
 def q(x):

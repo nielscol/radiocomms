@@ -4,6 +4,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+from lib.tools import *
 
 def plot_td(signal, verbose=True, label="", *args, **kwargs):
     if verbose:
@@ -94,3 +95,37 @@ def plot_constellation_density(i, q, verbose=True, ax_dim=128, label="", *args, 
     ax = plt.gca()
     ax.set_aspect(1.0)
     plt.title("IQ Constellation")
+
+
+def crossing_times(signal_td):
+    crossings = np.where(np.diff(np.sign(signal_td)))[0] # returns index of values before or at crossings
+    n_crossings = len(crossings)
+    frac_crossings = []
+    td = signal_td
+    td_len = len(signal_td)
+    for cross_n, td_n in enumerate(crossings):
+        if td_n+1 < td_len and td[td_n+1] != 0.0:
+            frac_crossings.append(td_n-(td[td_n]/float(td[td_n+1]-td[td_n])))
+        elif td_n > 0 and td[td_n] == 0.0 and td[td_n-1] != 0:
+            frac_crossings.append(float(td_n))
+        elif td_n+1 < td_len and cross_n+1 < n_crossings and td[td_n] != 0.0 and td[td_n+1] == 0 and td_n+1 != crossings[cross_n+1]:
+            frac_crossings.append(float(td_n+1))
+    return frac_crossings
+
+
+def line_eye(signal, interp_factor=10, interp_span=128, remove_ends=100):
+    td = signal.td[remove_ends:]
+    td = td[:-remove_ends]
+    interpolated = sinx_x_interp(td, interp_factor, interp_span)
+    ui_samples = interp_factor*signal.fs/float(signal.bitrate)
+    crossings = crossing_times(interpolated)
+    td = interpolated
+    td_len = len(interpolated)
+    _ui_samples = round(ui_samples)
+    for crossing in crossings:
+        if round(crossing) > _ui_samples and round(crossing) < td_len - 2*_ui_samples:
+            _slice = td[int(round(crossing)-_ui_samples):int(round(crossing)+2*_ui_samples)]
+            time = np.arange(len(_slice)) - _ui_samples - (crossing-round(crossing))
+            time /= float(ui_samples)
+            plt.plot(time, _slice)
+    plt.xlim((-0.5,1.5))
