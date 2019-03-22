@@ -9,6 +9,7 @@ from scipy import signal
 from scipy.special import erfinv
 from lib._signal import *
 from lib.tools import *
+from copy import copy
 
 ##########################################################################################
 # DATA representation transforms
@@ -49,7 +50,6 @@ def butter_lowpass(cutoff, fs, order=5):
     return b, a
 
 def butter_lowpass_filter(signal, cutoff, order=5, autocompute_fd=False, verbose=True, *args, **kwargs):
-    print(signal.td.dtype)
     b, a = butter_lowpass(cutoff, signal.fs, order=order)
     filt_td = np.array(lfilter(b, a, signal.td), dtype=signal.td.dtype)
     return make_signal(td=filt_td, fs = signal.fs, bitrate=signal.bitrate, bits=signal.bits, signed=signal.signed, autocompute_fd=autocompute_fd, name=signal.name, verbose=False, *args, **kwargs)
@@ -81,6 +81,13 @@ def remove_dc(signal, autocompute_fd=False, verbose=True, *args, **kwargs):
     else:
         new_fd = np.zeros(len(new_td))
     return Signal(new_td, new_fd, signal.fs, signal.samples, signal.bits, signal.signed, signal.fbin, signal.name, bitrate=signal.bitrate)
+
+
+def sign(signal, autocompute_fd=False, verbose=True, dtype=float, *args, **kwargs):
+    td = signal.td.astype(dtype)
+    td[td<=0] = -1.0
+    td[td>0] = 1.0
+    return make_signal(td=td, fs = signal.fs, bits=signal.bits, signed=signal.signed, bitrate=signal.bitrate, autocompute_fd=autocompute_fd, name=signal.name+"_added_noise", verbose=False, *args, **kwargs)
 
 
 def add_noise(signal, rms, autocompute_fd=False, verbose=True, *args, **kwargs):
@@ -118,14 +125,18 @@ def scale_to_fill_range(signal, autocompute_fd=False, verbose=True, *args, **kwa
 def rescale_signal(signal, factor, autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Rescales signal
     """
-    if not signal.signed:
-        raise Exception("Please convert signal to be signed with convert_to_signed")
-    if factor > 1.0:
-        raise(Exception("Do not use to scale beyond 1.0, always use scale_to_fill_range, and then this method with factor<1.0"))
-    new_td = np.array(np.rint(signal.td*factor), dtype=np.int32)
-    if verbose:
-        print("\n* Rescaled signal by factor %f"%factor)
-    return make_signal(td=new_td, fs = signal.fs, bits=signal.bits, bitrate=signal.bitrate, signed=signal.signed, autocompute_fd=autocompute_fd, name=signal.name, verbose=False, *args, **kwargs)
+    if signal.td.dtype in [np.int8, np.int16, np.int32, np.int64]:
+        if not signal.signed:
+            raise Exception("Please convert signal to be signed with convert_to_signed")
+        if factor > 1.0:
+            raise(Exception("Do not use to scale beyond 1.0, always use scale_to_fill_range, and then this method with factor<1.0"))
+        new_td = np.array(np.rint(signal.td*factor), dtype=np.int32)
+        if verbose:
+            print("\n* Rescaled signal by factor %f"%factor)
+        return make_signal(td=new_td, fs = signal.fs, bits=signal.bits, bitrate=signal.bitrate, signed=signal.signed, autocompute_fd=autocompute_fd, name=signal.name, verbose=False, *args, **kwargs)
+    else:
+        return make_signal(td=signal.td*factor, fs = signal.fs, bits=signal.bits, bitrate=signal.bitrate, signed=signal.signed, autocompute_fd=autocompute_fd, name=signal.name, verbose=False, *args, **kwargs)
+
 
 def sum_signals(signal_a, signal_b, autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Adds two signals together. Presumebly this is for baseband signals and not binary data... so bitrates add

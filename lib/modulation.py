@@ -1,3 +1,6 @@
+""" Methods for modulation and demodulation, and up/down conversion
+"""
+
 import numpy as np
 from math import pi, sqrt, log
 from lib._signal import *
@@ -8,18 +11,24 @@ from scipy.special import erfc
 SQRT2 = sqrt(2.0)
 SQRTLN2 = sqrt(log(2.0))
 
-def generate_msk_baseband(message, oversampling, name="", autocompute_fd=False, verbose=True, *args, **kwargs):
-    # map binary {0,1} onto {-1, 1}
-    bb_message = np.array(message.td, dtype=float)
-    bb_message[bb_message<=0] = -1
-    bb_message[bb_message>0] = 1
+def generate_msk_baseband(message, oversampling, name="", binary_message=True, autocompute_fd=False, verbose=True, *args, **kwargs):
+    """ Generates I/Q signals according to MSK modulation.
+        Args:
+            message: bit stream if binary_message=True, or floaring point valued signal [-1,1] otherwise
+            oversampling: rate to oversample (compared to message fs)
+    """
+    _message = message.td.astype(float)
+    if binary_message:
+        # map binary {0,1} onto {-1, 1}
+        _message[_message<=0] = -1
+        _message[_message>0] = 1
     # Upsample message to and convolve with rectangular pulse shape
-    pulse_shape = np.ones(oversampling)
+    tx_fir = np.ones(oversampling)
     upsampled = np.zeros(len(message.td)*oversampling)
-    upsampled[np.arange(len(message.td))*oversampling] = bb_message
-    bb_message = np.convolve(upsampled, pulse_shape, mode="full")
+    upsampled[np.arange(len(message.td))*oversampling] = _message
+    upsampled = np.convolve(upsampled, tx_fir, mode="full")
     # generate MSK phase signal from baseband message
-    msk_phase = (pi/2.0)*np.cumsum(bb_message)/float(oversampling)
+    msk_phase = (pi/2.0)*np.cumsum(upsampled)/float(oversampling)
     # Generate I/Q baseband components
     i = np.cos(msk_phase)
     q = np.sin(msk_phase)
@@ -33,24 +42,33 @@ def gmsk_pulse(t, bt, tbit):
     return (1/(2.0*tbit))*(q(2*pi*bt*(t-0.5*tbit)/SQRTLN2)-q(2*pi*bt*(t+0.5*tbit)/SQRTLN2))
 v_gmsk_pulse = np.vectorize(gmsk_pulse, otypes=[float])
 
-def generate_gmsk_baseband(message, oversampling, bt, pulse_span, name="", autocompute_fd=False, verbose=True, *args, **kwargs):
-    # map binary {0,1} onto {-1, 1}
-    bb_message = np.array(message.td, dtype=float)
-    bb_message[bb_message<=0] = -1
-    bb_message[bb_message>0] = 1
+def generate_gmsk_baseband(message, oversampling, bt, pulse_span, name="", binary_message=True, autocompute_fd=False, verbose=True, *args, **kwargs):
+    """ Generates I/Q signals according to GMSK modulation.
+        Args:
+            message: bit stream if binary_message=True, or floaring point valued signal [-1,1] otherwise
+            oversampling: rate to oversample (compared to message fs)
+            bt: rolloff factor for GMSK pulse response
+            pulse_span: number of bits FIR pulse response should cover
+            binary_message: if True, input assumed to be {0,1} and is remapped as needed by the modulator to {-1,1}
+    """
+    _message = message.td.astype(float)
+    if binary_message:
+        # map binary {0,1} onto {-1, 1}
+        _message[_message<=0] = -1
+        _message[_message>0] = 1
     # Make GMSK pulse shape
-    pulse_len = int(oversampling*pulse_span)
-    t = (np.arange(pulse_len)-pulse_len/2)/float(oversampling)
-    pulse_shape = 2*v_gmsk_pulse(t, bt, 1.0)
-    # add an offset to pulse so sum of samples = 1.0
-    pulse_error = np.sum(pulse_shape)-oversampling
-    pulse_shape -= pulse_error/float(pulse_len)
+    fir_samples = int(oversampling*pulse_span+1)
+    t = (np.arange(fir_samples)/float(oversampling) - 0.5*pulse_span)
+    TBIT = 1.0
+    tx_fir = v_gmsk_pulse(t, bt, TBIT)
+    # Normalize pulse shape so integrated value is pi/2
+    tx_fir *= pi/(2.0*sum(tx_fir))
     # upsample message and apply pulse shape through convolution
     upsampled = np.zeros(len(message.td)*oversampling)
-    upsampled[np.arange(len(message.td))*oversampling] = bb_message
-    bb_message = np.convolve(upsampled, pulse_shape, mode="full")
+    upsampled[np.arange(len(message.td))*oversampling] = _message
+    upsampled = np.convolve(upsampled, tx_fir, mode="full")
     # generate GMSK phase signal from baseband message
-    gmsk_phase = (pi/2.0)*np.cumsum(bb_message)/float(oversampling)
+    gmsk_phase = np.cumsum(upsampled)
     # Generate I/Q baseband components
     i = np.cos(gmsk_phase)
     q = np.sin(gmsk_phase)
@@ -109,7 +127,29 @@ def downconvert_rf(carrier_f, rf, name="", autocompute_fd=False, verbose=True, *
 
     return i_sig, q_sig
 
-def demodulate_gmsk(i, q, oversampling, bt, pulse_span, name="", autocompute_fd=False, verbose=True, *args, **kwargs):
+def demodulate_gmsk(i, q, oversampling, name="", autocompute_fd=False, verbose=True, *args, **kwargs):
     demod_td = (2.0/pi)*oversampling*np.diff(np.unwrap(np.arctan2(q.td,i.td)))
     return make_signal(td=demod_td, fs=i.fs, bitrate=i.bitrate+q.bitrate, name=name+"_gmsk_demodulated", autocompute_fd=autocompute_fd, verbose=False)
 
+def rx_filter(signal, fir_taps, oversampling):
+    # Make GMSK pulse shape
+    filt_td = np.convolve(signal.td, fir_taps, mode="full")/float(oversampling)
+    return make_signal(td=filt_td, fs=signal.fs, bitrate=signal.bitrate, name=signal.name+"_matched_filter", autocompute_fd=False, verbose=False)
+
+
+def gaussian_to_raised_cosine(bt, oversampling, pulse_span):
+    # Make GMSK pulse shape
+    pulse_len = int(oversampling*pulse_span)
+    t = (np.arange(pulse_len)-pulse_len/2)/float(oversampling)
+    gmsk_pulse_shape = 2*v_gmsk_pulse(t, bt, 1.0)
+    # add an offset to pulse so sum of samples = 1.0
+    gmsk_pulse_error = np.sum(gmsk_pulse_shape)-oversampling
+    gmsk_pulse_shape -= gmsk_pulse_error/float(pulse_len)
+    rc_pulse_shape = v_raised_cos(t, 1.0, 1.0)
+    gmsk_pulse_shape += np.random.normal(0,1e-9,pulse_len)
+    fir = np.fft.ifft(np.fft.fft(rc_pulse_shape)/np.fft.fft(gmsk_pulse_shape))
+    fir = np.fft.fftshift(fir)
+    # add an offset to pulse so sum of samples = 1.0
+    #pulse_error = np.sum(pulse_shape)-oversampling
+    #pulse_shape -= pulse_error/float(pulse_len)
+    return fir

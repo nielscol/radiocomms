@@ -44,3 +44,17 @@ def sinx_x_interp(x, factor, span):
 
 def q(x):
     return 0.5*erfc(x/SQRT2)
+
+def raised_cos(t, tbit, rolloff):
+    tbit=float(tbit)
+    if rolloff != 0.0 and abs(tbit/(2.0*rolloff)) == t:
+        return (pi/(4.0*tbit))*sinx_x(1/(2.0*rolloff))
+    elif (2*rolloff*t/tbit)**2 == 1.0:
+        if raised_cos(t*(1+1e-6), tbit,rolloff) < 0.25:
+            return 0.0
+        else:
+            return 0.5
+    else:
+        return (1.0/tbit)*sinx_x(t/tbit)*np.cos(pi*rolloff*t/tbit)/(1.0-(2*rolloff*t/tbit)**2)
+v_raised_cos = np.vectorize(raised_cos, otypes=[float])
+

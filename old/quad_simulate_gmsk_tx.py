@@ -5,32 +5,39 @@ from lib._signal import *
 from lib.modulation import *
 from lib.plot import *
 from lib.transforms import *
-from lib.gmsk_rx_filter import gmsk_rx_filter
 
-#gaussian_to_raised_cosine(0.3, 16, 4)
+def upsample(signal, factor):
+    upsampled = np.zeros(len(signal)*factor)
+    upsampled[np.arange(len(signal))*factor] = signal
+    return upsampled
+
+def pm_map(bits):
+    bits[bits<=0] = -1
+    bits[bits>0] = 1
+    return bits
+
 
 N_BITS = 1000
 BIT_RATE = 64000 + 2400
 OVERSAMPLING = 16
 
 BT = 0.3
-PULSE_SPAN = 8
+PULSE_SPAN = 4
 
 SPECTRAL_EFF = 1.0 # bits/s/Hz
 BW = BIT_RATE/(SPECTRAL_EFF*2.0) # theoretical signal bandwidth
 CARRIER = 10.0*BW
 
 message = generate_random_bitstream(length=N_BITS, bitrate=BIT_RATE)
-#message2 = generate_random_bitstream(length=N_BITS, bitrate=BIT_RATE)
-#message = sum_signals(rescale_signal(sign(message1), 2.0/3.0), rescale_signal(sign(message2), 1.0/3.0))
-#plot_td(message)
-#plt.show()
+message2 = generate_random_bitstream(length=N_BITS, bitrate=BIT_RATE)
 
 msk_i, msk_q = generate_msk_baseband(message, OVERSAMPLING)
 msk_rf = upconvert_baseband(CARRIER, msk_i, msk_q)
 
 gmsk_i, gmsk_q = generate_gmsk_baseband(message, OVERSAMPLING, bt=BT, pulse_span=PULSE_SPAN)
-gmsk_rf = upconvert_baseband(CARRIER, gmsk_i, gmsk_q)
+gmsk_i2, gmsk_q2 = generate_gmsk_baseband(message2, OVERSAMPLING, bt=BT, pulse_span=PULSE_SPAN)
+gmsk_q2.td *= -1.0
+gmsk_rf = upconvert_baseband(CARRIER, sum_signals(gmsk_i, gmsk_q2), sum_signals(gmsk_q, gmsk_i2))
 
 plt.subplot(2,2,1)
 plot_constellation_density(gmsk_i, gmsk_q)
@@ -39,8 +46,8 @@ plot_iq_phase_mag(gmsk_i, gmsk_q)
 plt.subplot(2,2,3)
 plot_phase_histogram(gmsk_i, gmsk_q)
 
-msk_rf = add_noise(msk_rf, rms=0.01)
-gmsk_rf = add_noise(gmsk_rf, rms=0.01)
+msk_rf = add_noise(msk_rf, rms=0.05)
+gmsk_rf = add_noise(gmsk_rf, rms=0.05)
 
 #plt.figure(0)
 #plot_td(gmsk_rf)
@@ -51,7 +58,7 @@ plot_fd(msk_rf)
 plot_fd(gmsk_rf)
 plt.show()
 
-gmsk_rf = gaussian_fade(gmsk_rf, f = 1000)
+# gmsk_rf = gaussian_fade(gmsk_rf, f = 1000)
 
 n = int(round(gmsk_rf.fs/float(gmsk_i.fs)))
 rx_i, rx_q = downconvert_rf(CARRIER, gmsk_rf)
@@ -72,18 +79,4 @@ demodulated = demodulate_gmsk(rx_i, rx_q, OVERSAMPLING)
 plt.subplot(2,2,4)
 plot_td(demodulated)
 
-plt.show()
-
-
-_fir_taps = gaussian_to_raised_cosine(BT,OVERSAMPLING,PULSE_SPAN)
-fir_taps = gmsk_rx_filter(OVERSAMPLING, int(2*PULSE_SPAN), BT, 0.0)
-demod_filt = rx_filter(demodulated, fir_taps, OVERSAMPLING)
-#demod_mf = matched_filter(demodulated, BT, OVERSAMPLING, PULSE_SPAN)
-#plot_td(demodulated)
-#plt.plot(_fir_taps)
-fir = make_signal(td=fir_taps, fs=demodulated.fs)
-plot_fd(fir)
-plt.show()
-plot_td(demod_filt)
-plot_td(demodulated)
 plt.show()

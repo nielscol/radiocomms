@@ -59,9 +59,6 @@ def plot_iq_phase_mag(i, q, verbose=True, label="", *args, **kwargs):
     times = np.arange(i.samples)/float(i.fs)
     plt.grid()
     plt.xlabel("Time [s]")
-    print(type(q.td),type(i.td))
-    print(q.td.dtype, i.td.dtype)
-    print(q.td.shape, i.td.shape)
     plt.plot(times, np.arctan2(q.td, i.td), label=label+" Phase")
     plt.plot(times, np.hypot(i.td, q.td), label=label+" Magnitude")
     plt.title("IQ Phase and Magnitude")
@@ -93,7 +90,7 @@ def plot_constellation_density(i, q, verbose=True, ax_dim=128, label="", *args, 
 
     for n, ii in enumerate(i.td):
         im[iq_to_coordinate(ii, q.td[n], ax_dim)] += 1
-    plt.imshow(np.sqrt(im), cmap="inferno", interpolation=None)
+    plt.imshow(np.log(im+1), cmap="inferno", interpolation="gaussian")
     ax = plt.gca()
     ax.set_aspect(1.0)
     plt.title("IQ Constellation")
