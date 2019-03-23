@@ -10,6 +10,7 @@ from lib.clock_recovery import *
 import math
 from copy import copy
 from scipy import ndimage
+from multiprocessing import Pool
 
 ###################################################################################
 #   BASIC TIME DOMAIN / POWER SPECTRUM PLOTTING
@@ -174,7 +175,7 @@ def plot_eye_lines(signal, bits_per_sym = 1, interp_factor=10, interp_span=128, 
     plt.xlim((-0.5,1.5))
 
 @timer
-def plot_eye_density(signal, eye_vpp=None, raster_height = 500, _3d=False, log=True, bits_per_sym=1, interp_factor=10, interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=False):
+def plot_eye_density(signal, eye_vpp=None, raster_height = 500, _3d=False, log=True, bits_per_sym=1, interp_factor=10, interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=False, pools=None):
     """ Plots eye diagram as intensity graded (density)
     """
     print("\n** Generating intensity graded eye diagram.")
@@ -218,12 +219,30 @@ def plot_eye_density(signal, eye_vpp=None, raster_height = 500, _3d=False, log=T
 
     eye_raster = np.zeros((raster_width, raster_height))
 
+    # run on multiple processes, will be quicker for large data sets
+    if pools != None:
+        print("\tComputing interpolated signal with %d processes ..."%pools)
+        #update globals
+        samples_per_pool = int(len(times)/float(pools))
+        segments = [] # break data into segements for pool
+        for n in range(pools):
+            t = times[n*samples_per_pool:(n+1)*samples_per_pool]
+            s = slices[n*samples_per_pool:(n+1)*samples_per_pool]
+            args = dict(times=t, slices=s, raster_height=raster_height, raster_width=raster_width, uis_in_waveform=uis_in_waveform, eye_vpp=eye_vpp, y_padding=y_padding)
+            segments.append(args)
 
-    for m, t in enumerate(times):
-        for n, sample in enumerate(slices[m][:-1]):
-            x0, y0 = float_to_raster_index(t[n], slices[m][n], -0.5*(uis_in_waveform-1.0), -0.5*y_padding*eye_vpp, 0.5*uis_in_waveform+0.5, 0.5*y_padding*eye_vpp, raster_height, raster_width)
-            x1, y1 = float_to_raster_index(t[n+1], slices[m][n+1], -0.5*(uis_in_waveform-1.0), -0.5*y_padding*eye_vpp, 0.5*uis_in_waveform+0.5, 0.5*y_padding*eye_vpp, raster_height, raster_width)  
-            plot_raster_line(x0, y0, x1, y1, eye_raster)
+        p = Pool(pools)
+        data = p.map(pool_rasterize, segments)
+        p.terminate()
+        for sub_raster in data:
+            eye_raster += sub_raster
+    else:
+        for m, t in enumerate(times):
+            for n, sample in enumerate(slices[m][:-1]):
+                x0, y0 = float_to_raster_index(t[n], slices[m][n], -0.5*(uis_in_waveform-1.0), -0.5*y_padding*eye_vpp, 0.5*uis_in_waveform+0.5, 0.5*y_padding*eye_vpp, raster_height, raster_width)
+                x1, y1 = float_to_raster_index(t[n+1], slices[m][n+1], -0.5*(uis_in_waveform-1.0), -0.5*y_padding*eye_vpp, 0.5*uis_in_waveform+0.5, 0.5*y_padding*eye_vpp, raster_height, raster_width)  
+                plot_raster_line(x0, y0, x1, y1, eye_raster)
+
     # apply log scaling to data 
     _eye_raster = copy(eye_raster)
     if log is True:
@@ -251,6 +270,19 @@ def plot_eye_density(signal, eye_vpp=None, raster_height = 500, _3d=False, log=T
     plt.xlim([-0.5*uis_in_plot + 0.5,uis_in_plot*0.5 + 0.5])
 
     return _eye_raster
+
+
+def pool_rasterize(args):
+    return rasterize(**args)
+
+def rasterize(times, slices, raster_height, raster_width, uis_in_waveform, y_padding, eye_vpp):
+    eye_raster = np.zeros((raster_width, raster_height))
+    for m, t in enumerate(times):
+        for n, sample in enumerate(slices[m][:-1]):
+            x0, y0 = float_to_raster_index(t[n], slices[m][n], -0.5*(uis_in_waveform-1.0), -0.5*y_padding*eye_vpp, 0.5*uis_in_waveform+0.5, 0.5*y_padding*eye_vpp, raster_height, raster_width)
+            x1, y1 = float_to_raster_index(t[n+1], slices[m][n+1], -0.5*(uis_in_waveform-1.0), -0.5*y_padding*eye_vpp, 0.5*uis_in_waveform+0.5, 0.5*y_padding*eye_vpp, raster_height, raster_width)  
+            plot_raster_line(x0, y0, x1, y1, eye_raster)
+    return eye_raster
 
 
 ###################################################################################
