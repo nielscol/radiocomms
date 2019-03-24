@@ -1,3 +1,8 @@
+""" Under differential-PCM, determine the maximum linear code deltas for
+    for several test audio files.
+
+    Cole Nielsen 2019
+"""
 import matplotlib.pyplot as plt
 import numpy as np
 import math

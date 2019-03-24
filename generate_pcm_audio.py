@@ -1,9 +1,15 @@
-import matplotlib.pyplot as plt
+""" Generates sample audio with PCM coding with various samples per bit, and
+    with various signal levels, bit error rates and injection of bit errors
+    only to a given bit of the sample word
+
+    Cole Nielsen 2019
+"""
+mport matplotlib.pyplot as plt
 import numpy as np
 import math
-from lib._signal import *
-from lib.transforms import *
-from lib.plot import *
+from lib._signal import wav_to_signal, save_signal_to_wav
+from lib.transforms import * # all signal transforms are from here
+from lib.plot import plot_td
 
 BITS_PER_SAMPLE = [8, 16]
 SAMPLING_RATE = 8000

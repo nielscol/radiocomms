@@ -1,13 +1,13 @@
-'''Simulates power spectrum of single tone audio with quantization 
-and injected bit errors
-'''
+""" Simulates power spectrum of single tone audio with quantization
+    and injected bit errors to determine peak SNR / ENOB
+"""
 import matplotlib.pyplot as plt
 import numpy as np
 import math
-from lib._signal import *
-from lib.plot import *
-from lib.analysis import *
-from lib.transforms import *
+from lib._signal import generate_quantized_tone
+from lib.plot import plot_td, plot_fd
+from lib.analysis import measure_sfdr, measure_sndr
+from lib.transforms import * # all the signal transforms
 
 BITS_PER_SAMPLE = 16
 SAMPLING_RATE = 8000

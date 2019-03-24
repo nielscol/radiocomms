@@ -33,15 +33,6 @@ from scipy.special import erfc
 
 SQRTLN2 = sqrt(log(2.0))
 
-def q(x):
-    return 0.5*erfc(x/sqrt(2))
-
-def sinx_x(x):
-    return 1.0 if x==0 else sin(pi*x)/(pi*x)
-
-v_sinx_x = np.vectorize(sinx_x, otypes=[float])
-
-
 #############################################################################
 #   GMSK Rx/Tx Filter design
 #############################################################################
@@ -74,7 +65,7 @@ def gmsk_tx_filter(k, m, bt, dt=0.0):
     return tx_fir
 
 
-def gmsk_rx_filter(k, m, bt, dt=0.0, delta=1e-3):
+def gmsk_matched_kaiser_rx_filter(k, m, bt_tx, bt_composite, dt=0.0, delta=1e-3, verbose=True, *args, **kwargs):
     """ Design GMSK receive filter
         k      : samples/symbol
         m      : symbol delay
@@ -86,21 +77,23 @@ def gmsk_rx_filter(k, m, bt, dt=0.0, delta=1e-3):
         raise Exception("error: gmsk_rx_filter(): k must be greater than 0\n")
     elif m < 1:
         raise Exception("error: gmsk_rx_filter(): m must be greater than 0\n")
-    elif bt < 0.0 or bt > 1.0:
-        raise Exception("error: gmsk_rx_filter(): beta must be in [0,1]\n")
+    elif bt_tx < 0.0 or bt_tx > 1.0:
+        raise exception("error: gmsk_rx_filter(): beta must be in [0,1]\n")
+    elif bt_composite < 0.0 or bt_composite > 1.0:
+        raise exception("error: gmsk_rx_filter(): beta must be in [0,1]\n")
 
     # derived values
     fir_len = k*m+1   # filter length
     # design transmit filter
-    tx_fir = gmsk_tx_filter(k, m, bt, 0.0)
+    tx_fir = gmsk_tx_filter(k, m, bt_tx, 0.0)
 
     # start of Rx filter design procedure
     # create 'prototype' matched filter
-    prototype_fir = kaiser_filter_prototype(k, m, bt, 0.0)
+    prototype_fir = kaiser_filter_prototype(k, m, bt_composite, 0.0)
     prototype_fir *= pi/(2.0*sum(prototype_fir))
 
     # create 'gain' filter to improve stop-band rejection
-    fc = (0.7 + 0.1*bt) / float(k)
+    fc = (0.7 + 0.1*bt_tx) / float(k)
     As = 60.0
     oob_reject_fir = kaiser_filter_design(fir_len, fc, As, 0.0)
 
@@ -121,6 +114,59 @@ def gmsk_rx_filter(k, m, bt, dt=0.0, delta=1e-3):
     rx_fir = np.fft.fftshift(np.fft.ifft(rx_fd))
     rx_fir = np.real(rx_fir)*k
 
+    return rx_fir
+
+
+def gmsk_matched_rcos_rx_filter(k, m, bt_tx, bt_composite, dt=0.0, delta=1e-3, verbose=True, *args, **kwargs):
+    """ Design GMSK receive filter for raised cosine
+        k      : samples/symbol
+        m      : symbol delay
+        bt     : tx rolloff factor (0 < beta <= 1)
+        beta   :
+        dt     : fractional sample delay
+    """
+    # validate input
+    if k < 1:
+        raise Exception("error: gmsk_rx_filter(): k must be greater than 0\n")
+    elif m < 1:
+        raise Exception("error: gmsk_rx_filter(): m must be greater than 0\n")
+    elif bt_tx < 0.0 or bt_tx > 1.0:
+        raise exception("error: gmsk_rx_filter(): beta must be in [0,1]\n")
+    elif bt_composite < 0.0 or bt_composite > 1.0:
+        raise exception("error: gmsk_rx_filter(): beta must be in [0,1]\n")
+
+    # derived values
+    fir_len = k*m+1   # filter length
+    # design transmit filter
+    tx_fir = gmsk_tx_filter(k, m, bt_tx, 0.0)
+
+    # start of Rx filter design procedure
+    # create 'prototype' matched filter
+
+    t  = np.arange(fir_len)/k - 0.5*m + dt
+    prototype_fir = v_raised_cos(t, 1.0, bt_composite)
+    prototype_fir *= pi/(2.0*sum(prototype_fir))
+    # create 'gain' filter to improve stop-band rejection
+    fc = (0.7 + 0.1*bt_tx) / float(k)
+    As = 60.0
+    oob_reject_fir = kaiser_filter_design(fir_len, fc, As, 0.0)
+
+    # run ffts
+    prototype_fd = np.fft.fft(prototype_fir)
+    oob_reject_fd = np.fft.fft(oob_reject_fir)
+    tx_fd = np.fft.fft(tx_fir)
+
+    # find minimum of reponses
+    tx_fd_min = np.amin(np.abs(tx_fd))
+    prototype_fd_min = np.amin(np.abs(prototype_fd))
+    oob_reject_fd_min = np.amin(np.abs(oob_reject_fd))
+
+    # compute approximate matched Rx response, removing minima, and add correction factor
+    rx_fd = (np.abs(prototype_fd) - prototype_fd_min + delta) / (np.abs(tx_fd) - tx_fd_min + delta)
+    # Out of band suppression
+    rx_fd *= (np.abs(oob_reject_fd) - oob_reject_fd_min) / (np.abs(oob_reject_fd[0]))
+    rx_fir = np.fft.fftshift(np.fft.ifft(rx_fd))
+    rx_fir = np.real(rx_fir)*k
     return rx_fir
 
 #############################################################################
@@ -275,6 +321,26 @@ def besseli0(z):
 
     return y
 
+def q(x):
+    return 0.5*erfc(x/sqrt(2))
+
+def sinx_x(x):
+    return 1.0 if x==0 else sin(pi*x)/(pi*x)
+
+v_sinx_x = np.vectorize(sinx_x, otypes=[float])
+
+def raised_cos(t, tbit, rolloff):
+    tbit=float(tbit)
+    if rolloff != 0.0 and abs(tbit/(2.0*rolloff)) == t:
+        return (pi/(4.0*tbit))*sinx_x(1/(2.0*rolloff))
+    elif (2*rolloff*t/tbit)**2 == 1.0:
+        if raised_cos(t*(1+1e-6), tbit,rolloff) < 0.25:
+            return 0.0
+        else:
+            return 0.5
+    else:
+        return (1.0/tbit)*sinx_x(t/tbit)*np.cos(pi*rolloff*t/tbit)/(1.0-(2*rolloff*t/tbit)**2)
+v_raised_cos = np.vectorize(raised_cos, otypes=[float])
 
 #import matplotlib.pyplot as plt
 #def gmsk_pulse(t, bt, tbit):

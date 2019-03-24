@@ -1,13 +1,17 @@
-'''Simulates power spectrum of single tone audio with quantization 
-and injected bit errors
-'''
+""" Simulates power spectrum of single tone audio with quantization
+    and injected bit errors with the average signal level found from
+    the "./speech.wav" file, to determine the PSNR and ENOB for that
+    audio file with various codecs.
+
+    Cole Nielsen 2019
+"""
 import matplotlib.pyplot as plt
 import numpy as np
 import math
-from lib._signal import *
-from lib.plot import *
-from lib.analysis import *
-from lib.transforms import *
+from lib._signal import generate_quantized_tone
+from lib.plot import plot_td, plot_fd
+from lib.analysis import measure_sndr, measure_sfdr
+from lib.transforms import * # everything else is from here
 
 BITS_PER_SAMPLE = 16
 SAMPLING_RATE = 8000

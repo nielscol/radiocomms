@@ -1,11 +1,12 @@
-'''Given synchronization word length, brute force finds code with lowest correlation sideband power
-'''
+""" Given synchronization word length, brute force finds code with lowest correlation sideband power
+    Cole Nielsen 2019
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 from scipy.special import erf
 import math
-from lib.sync import *
+from lib.sync import find_code, code_string
 import json
 
 MAX_N_BITS = 24

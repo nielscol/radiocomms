@@ -1,9 +1,17 @@
+""" Figures out the filter needed for differential-PCM (DPCM) to make
+    sure the max code differential between two samples is < the max
+    diff representable by a linear DPCM word
+
+    NOTE: this is not practical. Non-linear DPCM coding should be used..
+
+    Cole Nielsen 2019
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 import math
-from lib._signal import *
-from lib.plot import *
-from lib.transforms import *
+from lib._signal import make_signal
+from lib.plot import plot_fd
+from lib.transforms import simulate_tf_on_signal
 
 
 

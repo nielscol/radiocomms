@@ -1,8 +1,12 @@
+""" Takes audio file and calcuates relative RMS signal level of the audio versus full range
+    for the audio sample size
+"""
+
 import matplotlib.pyplot as plt
 import numpy as np
 import math
-from lib._signal import *
-from lib.transforms import *
+from lib._signal import wav_to_signal
+from lib.transforms import scale_to_fill_range
 
 FILE = "./speech.wav"
 

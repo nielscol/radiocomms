@@ -74,3 +74,12 @@ def measure_sndr(signal, tone_freq=1000, tone_bw=10, verbose=True, *args, **kwar
         print("\tTone frequency = %0.1f Hz, bandwidth = %0.1f"%(tone_freq, tone_bw))
         print("\tSignal name = %s"%signal.name)
     return sndr_db
+
+def measure_rms(signal, verbose=True, *args, **kwargs):
+    """ Measures RMS level of signal
+    """
+    rms = np.std(signal.td)
+    if verbose:
+        print("\nSignal RMS = %f"%rms)
+        print("\tSignal name = %s"%signal.name)
+    return rms

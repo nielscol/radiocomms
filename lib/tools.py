@@ -27,7 +27,7 @@ def timer(func):
 def sinx_x(x):
     return 1.0 if x==0 else sin(pi*x)/(pi*x)
 v_sinx_x = np.vectorize(sinx_x, otypes=[float])
-import matplotlib.pyplot as plt
+
 @timer
 def sinx_x_interp(x, factor, span, remove_extra=True):
     # make sinx_x pulse shape

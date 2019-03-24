@@ -4,7 +4,7 @@
 
 import numpy as np
 import math
-from scipy.signal import decimate, resample, butter, lfilter, freqz, sawtooth
+from scipy.signal import decimate, resample, butter, cheby2, lfilter, freqz, sawtooth
 from scipy import signal
 from scipy.special import erfinv
 from lib._signal import *
@@ -49,10 +49,31 @@ def butter_lowpass(cutoff, fs, order=5):
     b, a = butter(order, normal_cutoff, btype='low', analog=False)
     return b, a
 
-def butter_lowpass_filter(signal, cutoff, order=5, autocompute_fd=False, verbose=True, *args, **kwargs):
+def butter_lpf(signal, cutoff, order=5, autocompute_fd=False, verbose=True, *args, **kwargs):
     b, a = butter_lowpass(cutoff, signal.fs, order=order)
-    filt_td = np.array(lfilter(b, a, signal.td), dtype=signal.td.dtype)
+    filt_td = lfilter(b, a, signal.td)
+    filt_td = filt_td.astype(signal.td.dtype)
     return make_signal(td=filt_td, fs = signal.fs, bitrate=signal.bitrate, bits=signal.bits, signed=signal.signed, autocompute_fd=autocompute_fd, name=signal.name, verbose=False, *args, **kwargs)
+
+def cheby2_lowpass(cutoff, fs, stop_atten, order=5):
+    nyq = 0.5 * fs
+    normal_cutoff = cutoff / nyq
+    b, a = cheby2(N=order, rs=stop_atten, Wn=normal_cutoff, btype='low', analog=False)
+    return b, a
+
+def cheby2_lpf(signal, cutoff, stop_atten, order=5, autocompute_fd=False, verbose=True, *args, **kwargs):
+    b, a = cheby2_lowpass(cutoff, signal.fs, stop_atten, order=order)
+    filt_td = lfilter(b, a, signal.td)
+    filt_td = filt_td.astype(signal.td.dtype)
+    return make_signal(td=filt_td, fs = signal.fs, bitrate=signal.bitrate, bits=signal.bits, signed=signal.signed, autocompute_fd=autocompute_fd, name=signal.name, verbose=False, *args, **kwargs)
+
+
+def fir_filter(signal, fir_taps, oversampling, remove_extra=True, autocompute_fd=False, verbose=True, *args, **kwargs):
+    filt_td = np.convolve(signal.td, fir_taps, mode="full")/float(oversampling)
+    if remove_extra:
+        filt_td = filt_td[int(len(fir_taps)/2):]
+        filt_td = filt_td[:len(signal.td)]
+    return make_signal(td=filt_td, fs=signal.fs, bitrate=signal.bitrate, name=signal.name+"_fir_filtered", autocompute_fd=autocompute_fd, verbose=False)
 
 def simulate_tf_on_signal(signal, tf, autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Simulate effect of transfer function on signal with hermitian transfer function
@@ -95,6 +116,8 @@ def add_noise(signal, rms, autocompute_fd=False, verbose=True, *args, **kwargs):
     return make_signal(td=signal.td+noise, fs = signal.fs, bits=signal.bits, signed=signal.signed, bitrate=signal.bitrate, autocompute_fd=autocompute_fd, name=signal.name+"_added_noise", verbose=False, *args, **kwargs)
 
 def gaussian_fade(signal, f, autocompute_fd=False, verbose=True, *args, **kwargs):
+    """ Currently this is arbitrary....
+    """
     t = np.arange(len(signal.td))/float(signal.fs)
     triangle = sawtooth(2*np.pi*f*t, 0.5)
     fading = np.sqrt(2)*erfinv(0.9973*triangle)
@@ -138,7 +161,7 @@ def rescale_signal(signal, factor, autocompute_fd=False, verbose=True, *args, **
         return make_signal(td=signal.td*factor, fs = signal.fs, bits=signal.bits, bitrate=signal.bitrate, signed=signal.signed, autocompute_fd=autocompute_fd, name=signal.name, verbose=False, *args, **kwargs)
 
 
-def sum_signals(signal_a, signal_b, autocompute_fd=False, verbose=True, *args, **kwargs):
+def sum_signals(signal_a, signal_b, bitrate="sum", autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Adds two signals together. Presumebly this is for baseband signals and not binary data... so bitrates add
     """
     if signal_a.fs != signal_b.fs:
@@ -152,10 +175,17 @@ def sum_signals(signal_a, signal_b, autocompute_fd=False, verbose=True, *args, *
     else:
         bits = max([signal_a.bits, signal_b.bits])+1
     if not signal_a.bitrate or not signal_b.bitrate:
-        bitrate = None
+        _bitrate = None
     else:
-        bitrate = signal_a.bitrate + signal_b.bitrate
-    return make_signal(td=signal_a.td+signal_b.td, fs = signal_a.fs, bits=bits, bitrate=bitrate, signed=signal_a.signed, autocompute_fd=autocompute_fd, name=signal_a.name+"+"+signal_b.name, verbose=False, *args, **kwargs)
+        if bitrate=="sum":
+            _bitrate = signal_a.bitrate + signal_b.bitrate
+        elif bitrate=="signal_a":
+            _bitrate = signal_a.bitrate
+        elif bitrate=="signal_b":
+            _bitrate = signal_b.bitrate
+        else:
+            _bitrate = None
+    return make_signal(td=signal_a.td+signal_b.td, fs = signal_a.fs, bits=bits, bitrate=_bitrate, signed=signal_a.signed, autocompute_fd=autocompute_fd, name=signal_a.name+"+"+signal_b.name, verbose=False, *args, **kwargs)
 
 ##########################################################################################
 # DOWNSAMPLING AND DECIMATION 
@@ -187,6 +217,21 @@ def fft_downsample(signal, n, adjust_bitrate=False, autocompute_fd=False, verbos
     else:
         td = np.array(resample(signal.td, num = int(round(signal.samples/float(n)))), dtype=dtype)
     return make_signal(td=td, fs = signal.fs/float(n), bits=signal.bits, bitrate=bitrate, signed=signal.signed, autocompute_fd=autocompute_fd, name=signal.name +"-fftdecim", verbose=verbose, *args, **kwargs)
+
+def fft_resample(signal, n_samples, adjust_bitrate=False, autocompute_fd=False, verbose=True, *args, **kwargs):
+    dtype = signal.td.dtype
+    if verbose:
+        print("\n* FFT resampling %s from %d to %d samples."%(signal.name, len(signal.td), n_samples))
+    if adjust_bitrate:
+        bitrate = signal.bits*signal.fs/float(n)
+    else:
+        bitrate = signal.bitrate
+    if dtype in [np.int8, np.int16, np.int32, np.int64]:
+        td = np.array(np.rint(resample(signal.td, num = int(round(signal.samples/float(n))))) ,dtype=np.int32)
+    else:
+        td = resample(signal.td, num=n_samples)
+        td = td.astype(dtype)
+    return make_signal(td=td, fs = signal.fs*(n_samples/float(len(signal.td))), bits=signal.bits, bitrate=bitrate, signed=signal.signed, autocompute_fd=autocompute_fd, name=signal.name +"-fftdecim", verbose=verbose, *args, **kwargs)
 
 def no_filter_downsample(signal, n, adjust_bitrate=False, autocompute_fd=False, verbose=True, *args, **kwargs):
     if verbose:

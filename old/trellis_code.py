@@ -1,3 +1,7 @@
+""" An attempt at a code for error analysis with trellis codes
+
+    We won't use this so ignore...
+"""
 from scipy.stats import binom
 
 GROUP_SIZE = 2

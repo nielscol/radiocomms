@@ -1,6 +1,9 @@
+""" Plots the pulse shape of GMSK pulses with various BT
+    Cole Nielsen 2019
+"""
 import matplotlib.pyplot as plt
 import numpy as np
-from lib.modulation import *
+from lib.modulation import v_gmsk_pulse
 
 ts = 1.0
 BT = [0.1, 0.3, 0.5, 1.0]

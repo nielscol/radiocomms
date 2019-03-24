@@ -1,6 +1,8 @@
-'''Simulates power spectrum of single tone audio with quantization 
-and injected bit errors
-'''
+""" Simulates power spectrum of single tone audio with quantization
+    and varying audio input level to determine peak SNR / ENOB
+
+    Cole Nielsen 2019
+"""
 import matplotlib.pyplot as plt
 import numpy as np
 import math

@@ -16,23 +16,29 @@ from multiprocessing import Pool
 #   BASIC TIME DOMAIN / POWER SPECTRUM PLOTTING
 ###################################################################################
 
-def plot_td(signal, verbose=True, label="", *args, **kwargs):
+def plot_td(signal, verbose=True, label="", title="", alpha=1.0, *args, **kwargs):
     """ Plots time domain data for signal
     """
     if verbose:
-        print("\n* Plotting signal %s in time domain"%signal.name)
+        print("\n* Plotting signal in time domain")
+        print("\tSignal.name = %s"%signal.name)
     times = np.arange(signal.samples)/float(signal.fs)
     plt.ylabel("Signal")
     plt.xlabel("Time [s]")
     plt.grid()
-    plt.plot(times, signal.td, label=signal.name)
-    plt.title("Time domain")
+    if label != "":
+        plt.plot(times, signal.td, label=label, alpha=alpha)
+        plt.legend()
+    else:
+        plt.plot(times, signal.td, label=signal.name, alpha=alpha)
+    plt.title("Time domain "+title)
 
-def plot_fd(signal, log=True, label="", verbose=True, *args, **kwargs):
+def plot_fd(signal, log=True, label="", title="", alpha=1.0, verbose=True, *args, **kwargs):
     """ Plots spectral data for signal
     """
     if not any(signal.fd): # freq. domain not calculated
         print("\n* Calculating frequency domain representation of signal. This may be slow...")
+        print("\tSignal.name = %s"%signal.name)
         signal.fd = np.fft.fft(signal.td)
     if verbose:
         print("\n* Plotting signal %s in frequency domain"%signal.name)
@@ -43,20 +49,22 @@ def plot_fd(signal, log=True, label="", verbose=True, *args, **kwargs):
         if verbose:
             print("\tFFT - Log [dB] scale")
         plt.ylabel("FFT(Signal) [dB]")
-        plt.plot(freqs, 20*np.log10(np.abs(np.fft.fftshift(signal.fd))), label=label)
+        plt.plot(freqs, 20*np.log10(np.abs(np.fft.fftshift(signal.fd))), label=label, alpha=alpha)
     else:
         if verbose:
             print("\tFFT - Magnitude")
         plt.ylabel("FFT(Signal) [magnitude]")
-        plt.plot(freqs, np.abs(np.fft.fftshift(signal.fd)), label = label)
-    plt.title("Power Spectral Density")
+        plt.plot(freqs, np.abs(np.fft.fftshift(signal.fd)), label = label, alpha=alpha)
+    if label != "":
+        plt.legend()
+    plt.title("Power Spectral Density "+title)
     plt.legend()
 
 ###################################################################################
 #   IQ PHASE / MAGNITUDE
 ###################################################################################
 
-def plot_iq_phase_mag(i, q, verbose=True, label="", *args, **kwargs):
+def plot_iq_phase_mag(i, q, verbose=True, label="", title="", *args, **kwargs):
     """ Plots IQ phase and magnitude versus time
     """
     if verbose:
@@ -68,10 +76,10 @@ def plot_iq_phase_mag(i, q, verbose=True, label="", *args, **kwargs):
     plt.xlabel("Time [s]")
     plt.plot(times, np.arctan2(q.td, i.td), label=label+" Phase")
     plt.plot(times, np.hypot(i.td, q.td), label=label+" Magnitude")
-    plt.title("IQ Phase and Magnitude")
+    plt.title("IQ Phase and Magnitude "+title)
     plt.legend()
 
-def plot_phase_histogram(i, q, verbose=True, label="", *args, **kwargs):
+def plot_phase_histogram(i, q, verbose=True, label="", title="", *args, **kwargs):
     """ Plots histogram of IQ phase
     """
     if verbose:
@@ -81,14 +89,15 @@ def plot_phase_histogram(i, q, verbose=True, label="", *args, **kwargs):
     plt.hist(np.arctan2(q.td, i.td), bins=128, density=True, label=label)
     plt.xlabel("IQ Phase")
     plt.ylabel("Density")
-    plt.title("IQ Phase Histrogram")
-    plt.legend()
+    plt.title("IQ Phase Histrogram "+title)
+    if label != "":
+        plt.legend()
 
 ###################################################################################
 #   IQ CONSTELLATION
 ###################################################################################
 
-def plot_constellation(i, q, verbose=True, label="", *args, **kwargs):
+def plot_constellation(i, q, verbose=True, label="", title="", *args, **kwargs):
     """ Plots IQ constellation with lines
     """
     if verbose:
@@ -101,14 +110,18 @@ def plot_constellation(i, q, verbose=True, label="", *args, **kwargs):
     plt.grid()
     plt.xlabel("I")
     plt.ylabel("Q")
-    plt.title("IQ Constellation")
-    plt.legend()
+    plt.title("IQ Constellation"+title)
+    if label != "":
+        plt.legend()
 
 
-def plot_constellation_density(i, q, log=True, _3d=False, ax_dim=250, label="", verbose=True, *args, **kwargs):
+def plot_constellation_density(i, q, log=True, _3d=False, ax_dim=250, label="", title="", verbose=True, *args, **kwargs):
     """ Plots IQ constellation with intensity grading (density)
     """
-
+    if verbose:
+        print("\n* Plotting IQ signal constellation")
+        print("\tI.name = %s"%i.name)
+        print("\tQ.name = %s"%q.name)
     max_r = np.amax(np.hypot(i.td,q.td))
 
     # eye parameters
@@ -145,7 +158,7 @@ def plot_constellation_density(i, q, log=True, _3d=False, ax_dim=250, label="", 
 
     plt.xlabel("I")
     plt.ylabel("Q")
-    plt.title("IQ Constellation")
+    plt.title("IQ Constellation "+title)
 
     return _im
 
@@ -154,9 +167,12 @@ def plot_constellation_density(i, q, log=True, _3d=False, ax_dim=250, label="", 
 ###################################################################################
 
 @timer
-def plot_eye_lines(signal, bits_per_sym = 1, interp_factor=10, interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=False): # "constant_f" 
+def plot_eye_lines(signal, bits_per_sym = 1, interp_factor=10, interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=False, title="", verbose=True, *args, **kwargs): # "constant_f" 
     """ Plots eye diagram with lines
     """
+    if verbose:
+        print("\n* Plotting Eye Diagram with lines")
+        print("\tSignal.name = %s"%signal.name)
     td = signal.td[remove_ends:]
     td = td[:-remove_ends]
     interpolated = sinx_x_interp(td, interp_factor, interp_span)
@@ -171,14 +187,18 @@ def plot_eye_lines(signal, bits_per_sym = 1, interp_factor=10, interp_span=128, 
         plt.plot(t, slices[n])
     plt.xlabel("Time [UI]")
     plt.ylabel("Signal")
-    plt.title("Eye Diagram")
+    plt.title("Eye Diagram "+title)
     plt.xlim((-0.5,1.5))
 
 @timer
-def plot_eye_density(signal, eye_vpp=None, raster_height = 500, _3d=False, log=True, bits_per_sym=1, interp_factor=10, interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=False, pools=None):
+def plot_eye_density(signal, eye_vpp=None, raster_height = 500, _3d=False, log=True, bits_per_sym=1, interp_factor=10, interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=False, title="", pools=None, cmap="inferno", verbose=True, *args, **kwargs):
     """ Plots eye diagram as intensity graded (density)
     """
-    print("\n** Generating intensity graded eye diagram.")
+    if verbose:
+        print("\n* Plotting Eye Diagram Density")
+        print("\tSignal.name = %s"%signal.name)
+        if _3d:
+            print("\t3D plotting enabled")
     # interpolate signal, recover clock and segment data into eye sweeps
     td = signal.td[remove_ends:]
     td = td[:-remove_ends]
@@ -221,7 +241,7 @@ def plot_eye_density(signal, eye_vpp=None, raster_height = 500, _3d=False, log=T
 
     # run on multiple processes, will be quicker for large data sets
     if pools != None:
-        print("\tComputing interpolated signal with %d processes ..."%pools)
+        print("\tRasterizing eye diagram with %d processes ..."%pools)
         #update globals
         samples_per_pool = int(len(times)/float(pools))
         segments = [] # break data into segements for pool
@@ -259,14 +279,14 @@ def plot_eye_density(signal, eye_vpp=None, raster_height = 500, _3d=False, log=T
         cutoff = (uis_in_waveform-uis_in_plot)*raster_height
         __eye_raster = eye_raster[int(cutoff/2):-int(cutoff/2),:]
         __eye_raster = ndimage.gaussian_filter(__eye_raster, 2)
-        ha.plot_surface(xx, yy, __eye_raster.T[::-1,:], cmap="inferno")
+        ha.plot_surface(xx, yy, __eye_raster.T[::-1,:], cmap=cmap)
     else:
-        plt.imshow(eye_raster.T[::-1,:], aspect = plot_aspect_ratio, extent=[-0.5*(uis_in_waveform-1.0),0.5*uis_in_waveform+0.5,-0.5*y_padding*eye_vpp,0.5*y_padding*eye_vpp], cmap="inferno", #plt.cm.inferno, #nipy_spectral
+        plt.imshow(eye_raster.T[::-1,:], aspect = plot_aspect_ratio, extent=[-0.5*(uis_in_waveform-1.0),0.5*uis_in_waveform+0.5,-0.5*y_padding*eye_vpp,0.5*y_padding*eye_vpp], cmap=cmap, #plt.cm.inferno, #nipy_spectral
                 interpolation='gaussian')
 
     plt.xlabel("Time [UI]")
     plt.ylabel("Signal")
-    plt.title("Eye Diagram - Density")
+    plt.title("Eye Diagram (Density) "+title)
     plt.xlim([-0.5*uis_in_plot + 0.5,uis_in_plot*0.5 + 0.5])
 
     return _eye_raster
@@ -289,21 +309,31 @@ def rasterize(times, slices, raster_height, raster_width, uis_in_waveform, y_pad
 #   Jitter and TIE plotting
 ###################################################################################
 
-def plot_tie(signal, bits_per_sym = 1, interp_factor=10, interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=False):
+def plot_tie(signal, bits_per_sym = 1, interp_factor=10, interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=False, label="", title="", verbose=True, *args, **kwargs):
+    if verbose:
+        print("\n* Plotting Total Interval Error (TIE) trend.")
+        print("\tSignal.name = %s"%signal.name)
     tie = get_tie(signal, bits_per_sym, interp_factor, interp_span, remove_ends, recovery, est_const_f)
     t = np.arange(len(tie))*bits_per_sym/float(signal.bitrate)
-    plt.plot(t, tie)
-    plt.title("Clock-Data Jitter Total Interval Error (TIE)")
+    plt.plot(t, tie, label=label)
+    plt.title("Clock-Data Jitter Total Interval Error (TIE) "%title)
     plt.xlabel("Time [s]")
     plt.ylabel("TIE [UI]")
+    if label != "":
+        plt.legend()
 
 
-def plot_jitter_histogram(signal, bins=100, bits_per_sym = 1, interp_factor=10, interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=False):
+def plot_jitter_histogram(signal, bins=100, bits_per_sym = 1, interp_factor=10, interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=False, label="", title="", verbose=True, *args, **kwargs):
+    if verbose:
+        print("\n* Plotting Jitter Histogram.")
+        print("\tSignal.name = %s"%signal.name)
     tie = get_tie(signal, bits_per_sym, interp_factor, interp_span, remove_ends, recovery, est_const_f)
-    plt.hist(tie, bins=bins, density=True)
-    plt.title("Clock-Data Jitter Distribution")
+    plt.hist(tie, bins=bins, density=True, label=label)
+    plt.title("Clock-Data Jitter Distribution "+title)
     plt.xlabel("Time [UI]")
     plt.ylabel("Density")
+    if label != "":
+        plt.legend()
 
 ###################################################################################
 #   Auxiliary methods used my main plotting methods
@@ -379,6 +409,8 @@ def float_to_raster_index(x_float, y_float, f_x0, f_y0, f_x1, f_y1, raster_heigh
 
 
 def plot_raster_line(x0, y0, x1, y1, raster):
+    """ Bresenham's algorithm for line rasterization
+    """
     if x0 is None or y0 is None or x1 is None or y1 is None:
         return None
 

@@ -1,12 +1,13 @@
-'''Simulates correlation of data with synchronization codes
+''' Simulates correlation of data with synchronization codes
+    Cole Nielsen 2019
 '''
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 from scipy.special import erf
 import math
-from lib._signal import *
-from lib.sync import *
+from lib._signal import wav_to_signal
+from lib.sync import get_precomputed_codes
 import json
 
 FILE = "./speech.wav"

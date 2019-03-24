@@ -1,3 +1,6 @@
+""" Code to test functionality of u-law algorithm after translation from c to Python
+"""
+
 BIAS = 0x84   # define the add-in bias for 16 bit samples */
 CLIP = 32635
 

@@ -1,3 +1,8 @@
+""" Based on mathematical models for quantization noise power and noise power from
+    bit errors, estimate SNR for for audio subject to quantization and bit errors
+
+    Cole Nielsen 2019
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import binom

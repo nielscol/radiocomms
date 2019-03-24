@@ -27,6 +27,10 @@ def generate_msk_baseband(message, oversampling, name="", binary_message=True, a
     upsampled = np.zeros(len(message.td)*oversampling)
     upsampled[np.arange(len(message.td))*oversampling] = _message
     upsampled = np.convolve(upsampled, tx_fir, mode="full")
+    # remove extra samples from convolution:
+    extra = len(upsampled) - len(message.td)*oversampling
+    upsampled = upsampled[int(extra/2):]
+    upsampled = upsampled[:len(message.td)*oversampling]
     # generate MSK phase signal from baseband message
     msk_phase = (pi/2.0)*np.cumsum(upsampled)/float(oversampling)
     # Generate I/Q baseband components
@@ -67,6 +71,10 @@ def generate_gmsk_baseband(message, oversampling, bt, pulse_span, name="", binar
     upsampled = np.zeros(len(message.td)*oversampling)
     upsampled[np.arange(len(message.td))*oversampling] = _message
     upsampled = np.convolve(upsampled, tx_fir, mode="full")
+    # remove extra samples from convolution:
+    extra = len(upsampled) - len(message.td)*oversampling
+    upsampled = upsampled[int(extra/2):]
+    upsampled = upsampled[:len(message.td)*oversampling]
     # generate GMSK phase signal from baseband message
     gmsk_phase = np.cumsum(upsampled)
     # Generate I/Q baseband components
@@ -131,28 +139,3 @@ def demodulate_gmsk(i, q, oversampling, name="", autocompute_fd=False, verbose=T
     demod_td = (2.0/pi)*oversampling*np.diff(np.unwrap(np.arctan2(q.td,i.td)))
     return make_signal(td=demod_td, fs=i.fs, bitrate=i.bitrate+q.bitrate, name=name+"_gmsk_demodulated", autocompute_fd=autocompute_fd, verbose=False)
 
-def rx_filter(signal, fir_taps, oversampling, remove_extra=True):
-    # Make GMSK pulse shape
-    filt_td = np.convolve(signal.td, fir_taps, mode="full")/float(oversampling)
-    if remove_extra:
-        filt_td = filt_td[int(len(fir_taps)/2):]
-        filt_td = filt_td[:len(signal.td)]
-    return make_signal(td=filt_td, fs=signal.fs, bitrate=signal.bitrate, name=signal.name+"_matched_filter", autocompute_fd=False, verbose=False)
-
-
-def gaussian_to_raised_cosine(bt, oversampling, pulse_span):
-    # Make GMSK pulse shape
-    pulse_len = int(oversampling*pulse_span)
-    t = (np.arange(pulse_len)-pulse_len/2)/float(oversampling)
-    gmsk_pulse_shape = 2*v_gmsk_pulse(t, bt, 1.0)
-    # add an offset to pulse so sum of samples = 1.0
-    gmsk_pulse_error = np.sum(gmsk_pulse_shape)-oversampling
-    gmsk_pulse_shape -= gmsk_pulse_error/float(pulse_len)
-    rc_pulse_shape = v_raised_cos(t, 1.0, 1.0)
-    gmsk_pulse_shape += np.random.normal(0,1e-9,pulse_len)
-    fir = np.fft.ifft(np.fft.fft(rc_pulse_shape)/np.fft.fft(gmsk_pulse_shape))
-    fir = np.fft.fftshift(fir)
-    # add an offset to pulse so sum of samples = 1.0
-    #pulse_error = np.sum(pulse_shape)-oversampling
-    #pulse_shape -= pulse_error/float(pulse_len)
-    return fir

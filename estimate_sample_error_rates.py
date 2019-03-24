@@ -1,6 +1,8 @@
-'''Figure out probability of single bit errors in audio sample, and
-probability for error in MSB of sample. 
-'''
+""" Figure out probability of single bit errors in audio sample, and
+    probability for error in MSB of sample. 
+
+    Cole Nielsen 2019
+"""
 import numpy as np
 from scipy.stats import binom
 
@@ -18,7 +20,7 @@ for SAMPLING_RATE in SAMPLING_RATES:
         sample_error_rate[ber] = binom.pmf(n=BITS_PER_SAMPLE,k=1,p=ber)
         msb_error_rate[ber] = SAMPLING_RATE*ber
         print("%E\t%E\t%E"%(ber, sample_error_rate[ber], msb_error_rate[ber]))
-    
+
     print("\n* Required BER for various MSB errors per second")
     print("MSB Error/s\tBER")
     _bers = 10**np.linspace(-9.0, -1, 1000)
