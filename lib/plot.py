@@ -115,7 +115,7 @@ def plot_constellation(i, q, verbose=True, label="", title="", *args, **kwargs):
         plt.legend()
 
 
-def plot_constellation_density(i, q, log=True, _3d=False, ax_dim=250, label="", title="", verbose=True, *args, **kwargs):
+def plot_constellation_density(i, q, log=True, _3d=False, ax_dim=250, cmap="inferno", label="", title="", verbose=True, *args, **kwargs):
     """ Plots IQ constellation with intensity grading (density)
     """
     if verbose:
@@ -152,7 +152,7 @@ def plot_constellation_density(i, q, log=True, _3d=False, ax_dim=250, label="", 
         ha = hf.add_subplot(111, projection='3d')
         ha.plot_surface(xx, yy, _im.T[::-1,:], cmap="inferno")
     else:
-        plt.imshow(im.T[::-1,:], extent=[-r_padding*max_r,r_padding*max_r,-r_padding*max_r,r_padding*max_r], cmap="inferno", interpolation='gaussian')
+        plt.imshow(im.T[::-1,:], extent=[-r_padding*max_r,r_padding*max_r,-r_padding*max_r,r_padding*max_r], cmap=cmap, interpolation='gaussian')
         ax = plt.gca()
         ax.set_aspect(1.0)
 

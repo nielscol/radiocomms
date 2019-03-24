@@ -38,7 +38,7 @@ if __name__ == "__main__":
 
     _3D_EYE = False
     EYE_VPP = 3.0
-    CMAP = "nipy_spectral"
+    CMAP = "nipy_spectral" # "inferno" 
     POOLS = 8 # For running on multiple processes (parallelization)
 
     #

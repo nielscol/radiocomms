@@ -117,6 +117,54 @@ def gmsk_matched_kaiser_rx_filter(k, m, bt_tx, bt_composite, dt=0.0, delta=1e-3,
     return rx_fir
 
 
+def gmsk_kaiser_composite_rx_tx_response(k, m, bt_tx, bt_composite, dt=0.0, delta=1e-3, verbose=True, *args, **kwargs):
+    """ Filter given by gmsk_matched_kaiser_rx_filter() and gmsk_tx_filter() together
+        i.e. Kaiser filer but with some out-of-band supression
+        k      : samples/symbol
+        m      : symbol delay
+        bt     : rolloff factor (0 < beta <= 1)
+        dt     : fractional sample delay
+    """
+    # validate input
+    if k < 1:
+        raise Exception("error: gmsk_rx_filter(): k must be greater than 0\n")
+    elif m < 1:
+        raise Exception("error: gmsk_rx_filter(): m must be greater than 0\n")
+    elif bt_tx < 0.0 or bt_tx > 1.0:
+        raise exception("error: gmsk_rx_filter(): beta must be in [0,1]\n")
+    elif bt_composite < 0.0 or bt_composite > 1.0:
+        raise exception("error: gmsk_rx_filter(): beta must be in [0,1]\n")
+
+    # derived values
+    fir_len = k*m+1   # filter length
+
+    # create 'prototype' matched filter
+    prototype_fir = kaiser_filter_prototype(k, m, bt_composite, 0.0)
+    prototype_fir *= pi/(2.0*sum(prototype_fir))
+
+    # create 'gain' filter to improve stop-band rejection
+    fc = (0.7 + 0.1*bt_tx) / float(k)
+    As = 60.0
+    oob_reject_fir = kaiser_filter_design(fir_len, fc, As, 0.0)
+
+    # run ffts
+    prototype_fd = np.fft.fft(prototype_fir)
+    oob_reject_fd = np.fft.fft(oob_reject_fir)
+
+    # find minimum of reponses
+    prototype_fd_min = np.amin(np.abs(prototype_fd))
+    oob_reject_fd_min = np.amin(np.abs(oob_reject_fd))
+
+    # compute approximate matched Rx response, removing minima, and add correction factor
+    comp_fd = (np.abs(prototype_fd) - prototype_fd_min + delta)
+    # Out of band suppression
+    comp_fd *= (np.abs(oob_reject_fd) - oob_reject_fd_min) / (np.abs(oob_reject_fd[0]))
+    comp_fir = np.fft.fftshift(np.fft.ifft(comp_fd))
+    comp_fir = np.real(comp_fir)*k
+
+    return comp_fir
+
+
 def gmsk_matched_rcos_rx_filter(k, m, bt_tx, bt_composite, dt=0.0, delta=1e-3, verbose=True, *args, **kwargs):
     """ Design GMSK receive filter for raised cosine
         k      : samples/symbol
@@ -173,7 +221,7 @@ def gmsk_matched_rcos_rx_filter(k, m, bt_tx, bt_composite, dt=0.0, delta=1e-3, v
 #   Methods used by gmsk_rx_filter()
 #############################################################################
 
-def kaiser_filter_prototype(k, m, beta, mu):
+def kaiser_filter_prototype(k, m, beta, mu=0.0):
     """ Design (root-)Nyquist filter from prototype
         type   : filter type
         k      : samples/symbol
