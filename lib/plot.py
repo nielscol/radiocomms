@@ -309,26 +309,26 @@ def rasterize(times, slices, raster_height, raster_width, uis_in_waveform, y_pad
 #   Jitter and TIE plotting
 ###################################################################################
 
-def plot_tie(signal, bits_per_sym = 1, interp_factor=10, interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=False, label="", title="", verbose=True, *args, **kwargs):
+def plot_tie(signal, bits_per_sym = 1, alpha=1.0, interp_factor=10, interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=False, label="", title="", verbose=True, *args, **kwargs):
     if verbose:
         print("\n* Plotting Total Interval Error (TIE) trend.")
         print("\tSignal.name = %s"%signal.name)
     tie = get_tie(signal, bits_per_sym, interp_factor, interp_span, remove_ends, recovery, est_const_f)
     t = np.arange(len(tie))*bits_per_sym/float(signal.bitrate)
-    plt.plot(t, tie, label=label)
-    plt.title("Clock-Data Jitter Total Interval Error (TIE) "%title)
+    plt.plot(t, tie, label=label, alpha=alpha)
+    plt.title("Clock-Data Jitter Total Interval Error (TIE) "+title)
     plt.xlabel("Time [s]")
     plt.ylabel("TIE [UI]")
     if label != "":
         plt.legend()
 
 
-def plot_jitter_histogram(signal, bins=100, bits_per_sym = 1, interp_factor=10, interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=False, label="", title="", verbose=True, *args, **kwargs):
+def plot_jitter_histogram(signal, bins=100, alpha=1.0, bits_per_sym = 1, interp_factor=10, interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=False, label="", title="", verbose=True, *args, **kwargs):
     if verbose:
         print("\n* Plotting Jitter Histogram.")
         print("\tSignal.name = %s"%signal.name)
     tie = get_tie(signal, bits_per_sym, interp_factor, interp_span, remove_ends, recovery, est_const_f)
-    plt.hist(tie, bins=bins, density=True, label=label)
+    plt.hist(tie, bins=bins, density=True, label=label, alpha=alpha)
     plt.title("Clock-Data Jitter Distribution "+title)
     plt.xlabel("Time [UI]")
     plt.ylabel("Density")

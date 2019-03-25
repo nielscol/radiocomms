@@ -25,7 +25,7 @@ class Signal:
         self.fbin = fbin
         self.name = name
 
-def make_signal(td=[], fd=[], fs=None, bits=None, bitrate=None, signed=None, name="", autocompute_fd=False, verbose=False, *args, **kwargs):
+def make_signal(td=[], fd=[], fs=None, bits=None, bitrate=None, signed=None, name="", autocompute_fd=False, verbose=False, force_even_samples=True, *args, **kwargs):
     """Method to assist with creation of Signal objects.
     * Will not automatically compute fd = fft(td) unless autocompute_fd is set. This is to save time
     when not needed.
@@ -51,7 +51,7 @@ def make_signal(td=[], fd=[], fs=None, bits=None, bitrate=None, signed=None, nam
     elif not any(td) and not any(fd):
         raise Exception("No time domain (td) or frequency domain (fd) data passed.")
     if any(td):
-        if len(td) % 2 == 1: # make even no. samples
+        if len(td) % 2 == 1 and force_even_samples: # make even no. samples
             if verbose:
                 print("Removing sample to reshape data to even number of samples")
             td = td[:-1]
@@ -64,7 +64,7 @@ def make_signal(td=[], fd=[], fs=None, bits=None, bitrate=None, signed=None, nam
                 print("* Not pre-computing FFT of time domain data to save time in Signal object")
             fd = np.array(np.zeros(len(td)), dtype=np.complex)
     elif any(fd):
-        if len(fd) % 2 == 1: # make even no. samples
+        if len(fd) % 2 == 1 and force_even_samples: # make even no. samples
             if verbose:
                 print("Removing sample to reshape data to even number of samples")
             fd = fd[:-1]

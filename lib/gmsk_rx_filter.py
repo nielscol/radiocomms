@@ -30,6 +30,7 @@ from math import sqrt, log, pi, exp, sin
 import numpy as np
 from copy import copy
 from scipy.special import erfc
+from lib._signal import make_signal
 
 SQRTLN2 = sqrt(log(2.0))
 
@@ -37,7 +38,7 @@ SQRTLN2 = sqrt(log(2.0))
 #   GMSK Rx/Tx Filter design
 #############################################################################
 
-def gmsk_tx_filter(k, m, bt, dt=0.0):
+def gmsk_tx_filter(k, m, bt, fs, dt=0.0, autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Design GMSK transmit filter
          k      : samples/symbol
          m      : pulse_span
@@ -55,17 +56,17 @@ def gmsk_tx_filter(k, m, bt, dt=0.0):
     fir_len = k*m+1
 
     # compute filter coefficients
-    t  = np.arange(fir_len)/k - 0.5*m + dt
+    t  = np.arange(fir_len)/float(k) - 0.5*m + dt
     tx_fir = q(2*pi*bt*(t-0.5)/SQRTLN2)-q(2*pi*bt*(t+0.5)/SQRTLN2)
 
     # normalize filter coefficients such that the filter's
     # integral is pi/2
     tx_fir *= pi/(2.0*sum(tx_fir))
 
-    return tx_fir
+    return make_signal(td=tx_fir, fs=fs, force_even_samples=False, name="gmsk_tx_fir_bt_%.2f"%bt, autocompute_fd=autocompute_fd, verbose=False)
 
 
-def gmsk_matched_kaiser_rx_filter(k, m, bt_tx, bt_composite, dt=0.0, delta=1e-3, verbose=True, *args, **kwargs):
+def gmsk_matched_kaiser_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0, delta=1e-3, autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Design GMSK receive filter
         k      : samples/symbol
         m      : fir span
@@ -74,18 +75,18 @@ def gmsk_matched_kaiser_rx_filter(k, m, bt_tx, bt_composite, dt=0.0, delta=1e-3,
     """
     # validate input
     if k < 1:
-        raise Exception("error: gmsk_rx_filter(): k must be greater than 0\n")
+        raise Exception("error: gmsk_matched_kaiser_rx_filter(): k must be greater than 0\n")
     elif m < 1:
-        raise Exception("error: gmsk_rx_filter(): m must be greater than 0\n")
+        raise Exception("error: gmsk_matched_kaiser_rx_filter(): m must be greater than 0\n")
     elif bt_tx < 0.0 or bt_tx > 1.0:
-        raise exception("error: gmsk_rx_filter(): beta must be in [0,1]\n")
+        raise exception("error: gmsk_matched_kaiser_rx_filter(): beta must be in [0,1]\n")
     elif bt_composite < 0.0 or bt_composite > 1.0:
-        raise exception("error: gmsk_rx_filter(): beta must be in [0,1]\n")
+        raise exception("error: gmsk_matched_kaiser_rx_filter(): beta must be in [0,1]\n")
 
     # derived values
     fir_len = k*m+1   # filter length
     # design transmit filter
-    tx_fir = gmsk_tx_filter(k, m, bt_tx, 0.0)
+    tx_fir = gmsk_tx_filter(k, m, bt_tx, fs).td
 
     # start of Rx filter design procedure
     # create 'prototype' matched filter
@@ -114,10 +115,10 @@ def gmsk_matched_kaiser_rx_filter(k, m, bt_tx, bt_composite, dt=0.0, delta=1e-3,
     rx_fir = np.fft.fftshift(np.fft.ifft(rx_fd))
     rx_fir = np.real(rx_fir)*k
 
-    return rx_fir
+    return make_signal(td=rx_fir, fs=fs, force_even_samples=False, name="gmsk_kaiser_matched_rx_fir_bt_tx_%.2f_bt_comp_%.2f"%(bt_tx, bt_composite), autocompute_fd=autocompute_fd, verbose=False)
 
 
-def gmsk_kaiser_composite_rx_tx_response(k, m, bt_tx, bt_composite, dt=0.0, delta=1e-3, verbose=True, *args, **kwargs):
+def kaiser_composite_tx_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0, delta=1e-3, autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Filter given by gmsk_matched_kaiser_rx_filter() and gmsk_tx_filter() together
         i.e. Kaiser filer but with some out-of-band supression
         k      : samples/symbol
@@ -127,13 +128,13 @@ def gmsk_kaiser_composite_rx_tx_response(k, m, bt_tx, bt_composite, dt=0.0, delt
     """
     # validate input
     if k < 1:
-        raise Exception("error: gmsk_rx_filter(): k must be greater than 0\n")
+        raise Exception("error: kaiser_composite_rx_tx_filter(): k must be greater than 0\n")
     elif m < 1:
-        raise Exception("error: gmsk_rx_filter(): m must be greater than 0\n")
+        raise Exception("error: kaiser_composite_rx_tx_filter(): m must be greater than 0\n")
     elif bt_tx < 0.0 or bt_tx > 1.0:
-        raise exception("error: gmsk_rx_filter(): beta must be in [0,1]\n")
+        raise exception("error: kaiser_composite_rx_tx_filter(): beta must be in [0,1]\n")
     elif bt_composite < 0.0 or bt_composite > 1.0:
-        raise exception("error: gmsk_rx_filter(): beta must be in [0,1]\n")
+        raise exception("error: kaiser_composite_rx_tx_filter(): beta must be in [0,1]\n")
 
     # derived values
     fir_len = k*m+1   # filter length
@@ -162,10 +163,10 @@ def gmsk_kaiser_composite_rx_tx_response(k, m, bt_tx, bt_composite, dt=0.0, delt
     comp_fir = np.fft.fftshift(np.fft.ifft(comp_fd))
     comp_fir = np.real(comp_fir)*k
 
-    return comp_fir
+    return make_signal(td=comp_fir, fs=fs, force_even_samples=False, name="kaiser_composite_fir_%.2f_bt_comp_%.2f"%(bt_tx, bt_composite), autocompute_fd=autocompute_fd, verbose=False)
 
 
-def gmsk_matched_rcos_rx_filter(k, m, bt_tx, bt_composite, dt=0.0, delta=1e-3, verbose=True, *args, **kwargs):
+def gmsk_matched_rcos_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0, delta=1e-3, autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Design GMSK receive filter for raised cosine
         k      : samples/symbol
         m      : fir span
@@ -175,23 +176,23 @@ def gmsk_matched_rcos_rx_filter(k, m, bt_tx, bt_composite, dt=0.0, delta=1e-3, v
     """
     # validate input
     if k < 1:
-        raise Exception("error: gmsk_rx_filter(): k must be greater than 0\n")
+        raise Exception("error: gmsk_matched_rcos_rx_filter(): k must be greater than 0\n")
     elif m < 1:
-        raise Exception("error: gmsk_rx_filter(): m must be greater than 0\n")
+        raise Exception("error: gmsk_matched_rcos_rx_filter(): m must be greater than 0\n")
     elif bt_tx < 0.0 or bt_tx > 1.0:
-        raise exception("error: gmsk_rx_filter(): beta must be in [0,1]\n")
+        raise exception("error: gmsk_matched_rcos_rx_filter(): beta must be in [0,1]\n")
     elif bt_composite < 0.0 or bt_composite > 1.0:
-        raise exception("error: gmsk_rx_filter(): beta must be in [0,1]\n")
+        raise exception("error: gmsk_matched_rcos_rx_filter(): beta must be in [0,1]\n")
 
     # derived values
     fir_len = k*m+1   # filter length
     # design transmit filter
-    tx_fir = gmsk_tx_filter(k, m, bt_tx, 0.0)
+    tx_fir = gmsk_tx_filter(k, m, bt_tx, fs).td
 
     # start of Rx filter design procedure
     # create 'prototype' matched filter
 
-    t  = np.arange(fir_len)/k - 0.5*m + dt
+    t  = np.arange(fir_len)/float(k) - 0.5*m + dt
     prototype_fir = v_raised_cos(t, 1.0, bt_composite)
     prototype_fir *= pi/(2.0*sum(prototype_fir))
     # create 'gain' filter to improve stop-band rejection
@@ -215,7 +216,58 @@ def gmsk_matched_rcos_rx_filter(k, m, bt_tx, bt_composite, dt=0.0, delta=1e-3, v
     rx_fd *= (np.abs(oob_reject_fd) - oob_reject_fd_min) / (np.abs(oob_reject_fd[0]))
     rx_fir = np.fft.fftshift(np.fft.ifft(rx_fd))
     rx_fir = np.real(rx_fir)*k
-    return rx_fir
+
+    return make_signal(td=rx_fir, fs=fs, force_even_samples=False, name="gmsk_rcos_matched_fir_%.2f_bt_comp_%.2f"%(bt_tx, bt_composite), autocompute_fd=autocompute_fd, verbose=False)
+
+
+def rcos_composite_tx_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0, delta=1e-3, autocompute_fd=False, verbose=True, *args, **kwargs):
+    """ Raised cosine response including out of band supression
+        k      : samples/symbol
+        m      : fir span
+        bt     : tx rolloff factor (0 < beta <= 1)
+        beta   :
+        dt     : fractional sample delay
+    """
+    # validate input
+    if k < 1:
+        raise Exception("error: rcos_composite_tx_rx_filter(): k must be greater than 0\n")
+    elif m < 1:
+        raise Exception("error: rcos_composite_tx_rx_filter(): m must be greater than 0\n")
+    elif bt_tx < 0.0 or bt_tx > 1.0:
+        raise exception("error: rcos_composite_tx_rx_filter(): beta must be in [0,1]\n")
+    elif bt_composite < 0.0 or bt_composite > 1.0:
+        raise exception("error: rcos_composite_tx_rx_filter(): beta must be in [0,1]\n")
+
+    # derived values
+    fir_len = k*m+1   # filter length
+
+    # create 'prototype' matched filter
+
+    t  = np.arange(fir_len)/float(k) - 0.5*m + dt
+    prototype_fir = v_raised_cos(t, 1.0, bt_composite)
+    prototype_fir *= pi/(2.0*sum(prototype_fir))
+    # create 'gain' filter to improve stop-band rejection
+    fc = (0.7 + 0.1*bt_tx) / float(k)
+    As = 60.0
+    oob_reject_fir = kaiser_filter_design(fir_len, fc, As, 0.0)
+
+    # run ffts
+    prototype_fd = np.fft.fft(prototype_fir)
+    oob_reject_fd = np.fft.fft(oob_reject_fir)
+
+    # find minimum of reponses
+    prototype_fd_min = np.amin(np.abs(prototype_fd))
+    oob_reject_fd_min = np.amin(np.abs(oob_reject_fd))
+
+    # compute approximate matched Rx response, removing minima, and add correction factor
+    comp_fd = (np.abs(prototype_fd) - prototype_fd_min + delta)
+    # Out of band suppression
+    comp_fd *= (np.abs(oob_reject_fd) - oob_reject_fd_min) / (np.abs(oob_reject_fd[0]))
+    comp_fir = np.fft.fftshift(np.fft.ifft(comp_fd))
+    comp_fir = np.real(comp_fir)*k
+
+    return make_signal(td=comp_fir, fs=fs, force_even_samples=False, name="rcos_composite_fir_%.2f_bt_comp_%.2f"%(bt_tx, bt_composite), autocompute_fd=autocompute_fd, verbose=False)
+
 
 #############################################################################
 #   Methods used by gmsk_rx_filter()
@@ -352,7 +404,7 @@ def lngamma(z):
     else:
         # high value approximation
         g = 0.5*(log(2*pi)-log(z) )
-        g += z*(log(z+(1/(12.0*z-0.1/z)))-1)
+        g += z*(log(z+(1/(12.0*z-0.1/float(z))))-1)
     return g
 
 

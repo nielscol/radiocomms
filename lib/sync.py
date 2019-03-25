@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 from lib.tools import timer
+from lib._signal import make_signal
 import json
 from copy import copy
 
@@ -67,7 +68,7 @@ def find_code(bits, verbose=True, *args, **kwargs):
     #plt.show()
     return best_code
 
-def make_sync_fir(sync_code, pulse_fir, oversampling):
+def make_sync_fir(sync_code, pulse_fir, oversampling, autocompute_fd=False, verbose=True):
     """ Takes binary sync code word, oversamples it and convolves it with a pulse
         shape finite impulse response to make a FIR sequence that can be used on
         Rx signal for synchronization.
@@ -77,6 +78,6 @@ def make_sync_fir(sync_code, pulse_fir, oversampling):
     _sync_code[_sync_code>0] = 1.0
     sync_fir = np.zeros(len(_sync_code)*oversampling)
     sync_fir[np.arange(len(_sync_code))*oversampling] = _sync_code
-    sync_fir = np.convolve(sync_fir, pulse_fir, mode="full")
-    return sync_fir
+    sync_fir = np.convolve(sync_fir, pulse_fir.td, mode="full")
+    return make_signal(td=sync_fir, fs=pulse_fir.fs, name="sync_code_"+pulse_fir.name, autocompute_fd=autocompute_fd, verbose=False)
 

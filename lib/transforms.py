@@ -68,12 +68,25 @@ def cheby2_lpf(signal, cutoff, stop_atten, order=5, autocompute_fd=False, verbos
     return make_signal(td=filt_td, fs = signal.fs, bitrate=signal.bitrate, bits=signal.bits, signed=signal.signed, autocompute_fd=autocompute_fd, name=signal.name, verbose=False, *args, **kwargs)
 
 
-def fir_filter(signal, fir_taps, oversampling, remove_extra=True, autocompute_fd=False, verbose=True, *args, **kwargs):
-    filt_td = np.convolve(signal.td, fir_taps, mode="full")/float(oversampling)
+def fir_filter(signal, fir, oversampling, remove_extra=True, autocompute_fd=False, verbose=True, *args, **kwargs):
+    if fir.fs != signal.fs:
+        raise Exception("Incompatible sampling frequencies for FIR signal (%f) and signal to be filtered (%f)"%(fir.fs, signal.fs))
+    filt_td = np.convolve(signal.td, fir.td, mode="full")/float(oversampling)
     if remove_extra:
-        filt_td = filt_td[int(len(fir_taps)/2):]
+        filt_td = filt_td[int(len(fir.td)/2):]
         filt_td = filt_td[:len(signal.td)]
-    return make_signal(td=filt_td, fs=signal.fs, bitrate=signal.bitrate, name=signal.name+"_fir_filtered", autocompute_fd=autocompute_fd, verbose=False)
+    return make_signal(td=filt_td, fs=signal.fs, bitrate=signal.bitrate, name=signal.name+"_filtered_"+fir.name, autocompute_fd=autocompute_fd, verbose=False)
+
+
+def fir_correlate(signal, fir, oversampling, remove_extra=True, autocompute_fd=False, verbose=True, *args, **kwargs):
+    if fir.fs != signal.fs:
+        raise Exception("Incompatible sampling frequencies for FIR signal (%f) and signal to be correlated (%f)"%(fir.fs, signal.fs))
+    filt_td = np.correlate(signal.td, fir.td, mode="full")/float(oversampling)
+    if remove_extra:
+        filt_td = filt_td[int(len(fir.td)/2):]
+        filt_td = filt_td[:len(signal.td)]
+    return make_signal(td=filt_td, fs=signal.fs, bitrate=signal.bitrate, name=signal.name+"_correlated_"+fir.name, autocompute_fd=autocompute_fd, verbose=False)
+
 
 def simulate_tf_on_signal(signal, tf, autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Simulate effect of transfer function on signal with hermitian transfer function
