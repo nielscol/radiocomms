@@ -9,7 +9,8 @@ from lib.modulation import generate_msk_baseband, generate_gmsk_baseband, upconv
 from lib.plot import *  # Assuming all plotting methods come from here
 from lib.transforms import butter_lpf, cheby2_lpf, fir_filter, add_noise, sum_signals, filter_and_downsample, gaussian_fade
 from lib.analysis import measure_rms
-from lib.gmsk_rx_filter import gmsk_matched_kaiser_rx_filter, gmsk_matched_rcos_rx_filter
+from lib.gmsk_rx_filter import gmsk_matched_kaiser_rx_filter, gmsk_matched_rcos_rx_filter, gmsk_kaiser_composite_rx_tx_response
+from lib.sync import get_precomputed_codes, make_sync_fir, code_string
 
 if __name__ == "__main__":
     #gaussian_to_raised_cosine(0.3, 16, 4)
@@ -39,6 +40,9 @@ if __name__ == "__main__":
     EYE_VPP = 3.0
     CMAP = "nipy_spectral"
     POOLS = 8
+
+    SYNC_PULSE_SPAN = 8
+    SYNC_CODE_LEN = 24 # from precomputed values up to N=24
 
     #
     # Begin simulation
@@ -161,4 +165,24 @@ if __name__ == "__main__":
     #plot_jitter_histogram(demod_kaiser)
     #plt.subplot(2,3,6)
     #plot_jitter_histogram(demod_rcos)
+    #plt.show()
+
+
+    #
+    # SYNCHRONIZATION
+    #
+
+    plt.figure(6)
+    plt.subplot(1,2,1)
+    pulse_fir = gmsk_kaiser_composite_rx_tx_response(OVERSAMPLING, SYNC_PULSE_SPAN, BT_TX, BT_COMPOSITE)
+    sync_codes = get_precomputed_codes()
+    sync_code = sync_codes[SYNC_CODE_LEN]
+    print("\n* Applying synchronization FIR sequence to demodulated Rx signal")
+    print("\t%s"%code_string(sync_code))
+    sync_fir = make_sync_fir(sync_code, pulse_fir, OVERSAMPLING)
+    sync_correl = np.correlate(demod_kaiser.td, sync_fir, mode="full")
+    plt.plot(sync_correl)
+    plt.subplot(1,2,2)
+    plt.hist(sync_correl, bins=100, density=True)
     plt.show()
+

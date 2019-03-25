@@ -29,7 +29,7 @@ if __name__ == "__main__":
     CARRIER = 5.0*BW
     INTERFERER_CARRIER = 3.0*BW
 
-    FADING = False
+    FADING = True
 
     RX_LPF = 1.0*BW # Corner, AA filter/Interference rejection
     RX_LPF_TYPE = "butter" # "butter" or "cheby2"

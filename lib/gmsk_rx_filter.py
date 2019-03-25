@@ -68,7 +68,7 @@ def gmsk_tx_filter(k, m, bt, dt=0.0):
 def gmsk_matched_kaiser_rx_filter(k, m, bt_tx, bt_composite, dt=0.0, delta=1e-3, verbose=True, *args, **kwargs):
     """ Design GMSK receive filter
         k      : samples/symbol
-        m      : symbol delay
+        m      : fir span
         bt     : rolloff factor (0 < beta <= 1)
         dt     : fractional sample delay
     """
@@ -121,7 +121,7 @@ def gmsk_kaiser_composite_rx_tx_response(k, m, bt_tx, bt_composite, dt=0.0, delt
     """ Filter given by gmsk_matched_kaiser_rx_filter() and gmsk_tx_filter() together
         i.e. Kaiser filer but with some out-of-band supression
         k      : samples/symbol
-        m      : symbol delay
+        m      : span of fir
         bt     : rolloff factor (0 < beta <= 1)
         dt     : fractional sample delay
     """
@@ -168,7 +168,7 @@ def gmsk_kaiser_composite_rx_tx_response(k, m, bt_tx, bt_composite, dt=0.0, delt
 def gmsk_matched_rcos_rx_filter(k, m, bt_tx, bt_composite, dt=0.0, delta=1e-3, verbose=True, *args, **kwargs):
     """ Design GMSK receive filter for raised cosine
         k      : samples/symbol
-        m      : symbol delay
+        m      : fir span
         bt     : tx rolloff factor (0 < beta <= 1)
         beta   :
         dt     : fractional sample delay
@@ -225,7 +225,7 @@ def kaiser_filter_prototype(k, m, beta, mu=0.0):
     """ Design (root-)Nyquist filter from prototype
         type   : filter type
         k      : samples/symbol
-        m      : symbol delay
+        m      : fir span
         beta   : excess bandwidth factor, beta in [0,1]
         mu     : fractional sample delay (also dt)
     """

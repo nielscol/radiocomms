@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import math
 from lib.tools import timer
 import json
+from copy import copy
 
 def get_precomputed_codes():
     '''Precomputed codes for N=1 to N=24
@@ -65,3 +66,17 @@ def find_code(bits, verbose=True, *args, **kwargs):
     #plt.plot(np.correlate(best_code, best_code, mode="full"))
     #plt.show()
     return best_code
+
+def make_sync_fir(sync_code, pulse_fir, oversampling):
+    """ Takes binary sync code word, oversamples it and convolves it with a pulse
+        shape finite impulse response to make a FIR sequence that can be used on
+        Rx signal for synchronization.
+    """
+    _sync_code = np.array(sync_code, dtype=float)
+    _sync_code[_sync_code<=0] = -1.0
+    _sync_code[_sync_code>0] = 1.0
+    sync_fir = np.zeros(len(_sync_code)*oversampling)
+    sync_fir[np.arange(len(_sync_code))*oversampling] = _sync_code
+    sync_fir = np.convolve(sync_fir, pulse_fir, mode="full")
+    return sync_fir
+
