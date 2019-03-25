@@ -7,9 +7,11 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from lib.tools import *
 from lib.clock_recovery import *
+from lib._signal import EyeData
 import math
 from copy import copy
 from scipy import ndimage
+from scipy.stats import norm
 from multiprocessing import Pool
 
 ###################################################################################
@@ -32,6 +34,7 @@ def plot_td(signal, verbose=True, label="", title="", alpha=1.0, *args, **kwargs
     else:
         plt.plot(times, signal.td, label=signal.name, alpha=alpha)
     plt.title("Time domain "+title)
+
 
 def plot_fd(signal, log=True, label="", title="", alpha=1.0, verbose=True, *args, **kwargs):
     """ Plots spectral data for signal
@@ -60,6 +63,37 @@ def plot_fd(signal, log=True, label="", title="", alpha=1.0, verbose=True, *args
     plt.title("Power Spectral Density "+title)
     plt.legend()
 
+
+def plot_histogram(signal, bins=100, fit_normal=False, orientation="vertical", ax_label="[U]",
+                   label="", title="", alpha=1.0, verbose=True, *args, **kwargs):
+    """ Plots histogram for dependent variable of time series
+    """
+    if verbose:
+        print("\n* Plotting signal in time domain")
+        print("\tSignal.name = %s"%signal.name)
+    hist = plt.hist(signal.td, bins=bins, density=True, alpha=alpha, label=label,
+                    orientation=orientation)
+    if orientation == "vertical":
+        plt.xlabel(ax_label)
+    elif orientation == "horizontal":
+        plt.ylabel(ax_label)
+    plt.ylabel("Density")
+    plt.title("Histogram "+title)
+    if fit_normal:
+        mean = np.mean(signal.td)
+        stdev = np.std(signal.td)
+        if orientation == "vertical":
+            x = np.linspace(np.amin(signal.td), np.amax(signal.td), bins)
+            y = norm.pdf(x-1.0, mean, stdev)
+        elif orientation == "horizontal":
+            y = np.linspace(np.amin(signal.td), np.amax(signal.td), bins)
+            x = norm.pdf(y-1.0, mean, stdev)
+        plt.plot(x, y, label="mu=%f stdev=%f"%(mean,stdev), alpha=alpha)
+    if label != "" or fit_normal:
+        plt.legend()
+
+    return hist
+
 ###################################################################################
 #   IQ PHASE / MAGNITUDE
 ###################################################################################
@@ -78,6 +112,7 @@ def plot_iq_phase_mag(i, q, verbose=True, label="", title="", *args, **kwargs):
     plt.plot(times, np.hypot(i.td, q.td), label=label+" Magnitude")
     plt.title("IQ Phase and Magnitude "+title)
     plt.legend()
+
 
 def plot_phase_histogram(i, q, verbose=True, label="", title="", *args, **kwargs):
     """ Plots histogram of IQ phase
@@ -115,7 +150,8 @@ def plot_constellation(i, q, verbose=True, label="", title="", *args, **kwargs):
         plt.legend()
 
 
-def plot_constellation_density(i, q, log=True, _3d=False, ax_dim=250, cmap="inferno", label="", title="", verbose=True, *args, **kwargs):
+def plot_constellation_density(i, q, log=True, _3d=False, ax_dim=250, cmap="inferno",
+                               label="", title="", verbose=True, *args, **kwargs):
     """ Plots IQ constellation with intensity grading (density)
     """
     if verbose:
@@ -135,8 +171,10 @@ def plot_constellation_density(i, q, log=True, _3d=False, ax_dim=250, cmap="infe
     im = np.zeros((raster_width, raster_height))
 
     for n, ii in enumerate(i.td[:-1]):
-        x0, y0 = float_to_raster_index(i.td[n], q.td[n], -max_r*r_padding, -max_r*r_padding, max_r*r_padding, max_r*r_padding, raster_height, raster_width)
-        x1, y1 = float_to_raster_index(i.td[n+1], q.td[n+1], -max_r*r_padding, -max_r*r_padding, max_r*r_padding, max_r*r_padding,raster_height, raster_width)
+        x0, y0 = float_to_raster_index(i.td[n], q.td[n], -max_r*r_padding, -max_r*r_padding,
+                                       max_r*r_padding, max_r*r_padding, raster_height, raster_width)
+        x1, y1 = float_to_raster_index(i.td[n+1], q.td[n+1], -max_r*r_padding, -max_r*r_padding,
+                                       max_r*r_padding, max_r*r_padding,raster_height, raster_width)
         plot_raster_line(x0, y0, x1, y1, im)
     # apply log scaling to data 
     _im = copy(im)
@@ -152,7 +190,8 @@ def plot_constellation_density(i, q, log=True, _3d=False, ax_dim=250, cmap="infe
         ha = hf.add_subplot(111, projection='3d')
         ha.plot_surface(xx, yy, _im.T[::-1,:], cmap="inferno")
     else:
-        plt.imshow(im.T[::-1,:], extent=[-r_padding*max_r,r_padding*max_r,-r_padding*max_r,r_padding*max_r], cmap=cmap, interpolation='gaussian')
+        plt.imshow(im.T[::-1,:], extent=[-r_padding*max_r,r_padding*max_r,-r_padding*max_r,
+                                         r_padding*max_r], cmap=cmap, interpolation='gaussian')
         ax = plt.gca()
         ax.set_aspect(1.0)
 
@@ -167,7 +206,9 @@ def plot_constellation_density(i, q, log=True, _3d=False, ax_dim=250, cmap="infe
 ###################################################################################
 
 @timer
-def plot_eye_lines(signal, bits_per_sym = 1, interp_factor=10, interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=False, title="", verbose=True, *args, **kwargs): # "constant_f" 
+def plot_eye_lines(signal, bits_per_sym = 1, interp_factor=10, interp_span=128,
+                   remove_ends=100, recovery="constant_f", est_const_f=False,
+                   title="", verbose=True, *args, **kwargs): # "constant_f" 
     """ Plots eye diagram with lines
     """
     if verbose:
@@ -190,8 +231,14 @@ def plot_eye_lines(signal, bits_per_sym = 1, interp_factor=10, interp_span=128, 
     plt.title("Eye Diagram "+title)
     plt.xlim((-0.5,1.5))
 
+
 @timer
-def plot_eye_density(signal, eye_vpp=None, raster_height = 500, _3d=False, log=True, bits_per_sym=1, interp_factor=10, interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=False, title="", pools=None, cmap="inferno", verbose=True, *args, **kwargs):
+def plot_eye_density(signal, eye_vpp=None, raster_height = 500, _3d=False, log=True,
+                     bits_per_sym=1, interp_factor=10, interp_span=128, remove_ends=100,
+                     recovery="constant_f", est_const_f=False, title="", pools=None,
+                     cmap="inferno", verbose=True, sample_lines=False, oversampling=None,
+                     plot=True, previous_data=None, sync_code=None, pulse_fir=None,
+                     payload_len= None, sync_pos="center", *args, **kwargs):
     """ Plots eye diagram as intensity graded (density)
     """
     if verbose:
@@ -200,8 +247,10 @@ def plot_eye_density(signal, eye_vpp=None, raster_height = 500, _3d=False, log=T
         if _3d:
             print("\t3D plotting enabled")
     # interpolate signal, recover clock and segment data into eye sweeps
-    td = signal.td[remove_ends:]
-    td = td[:-remove_ends]
+    _signal = copy(signal)
+    _signal.td = _signal.td[remove_ends:]
+    _signal.td = _signal.td[:-remove_ends]
+    td = _signal.td
     interpolated = sinx_x_interp(td, interp_factor, interp_span)
     ui_samples = interp_factor*signal.fs*bits_per_sym/float(signal.bitrate)
     if recovery in [None, "edge_triggered"]:
@@ -210,7 +259,9 @@ def plot_eye_density(signal, eye_vpp=None, raster_height = 500, _3d=False, log=T
         times, slices = slice_constant_f(interpolated, ui_samples, est_const_f)
     elif recovery == "pll_second_order":
         times, slices = slice_pll_so(interpolated, ui_samples)
-
+    elif recovery == "frame_sync":
+        times, slices = slice_frame_sync(_signal, interpolated, sync_code, pulse_fir,
+                                         payload_len, oversampling, interp_factor, sync_pos)
     # auto set vertical scale if not given in arguments
     _min = 0.0
     _max = 0.0
@@ -223,6 +274,8 @@ def plot_eye_density(signal, eye_vpp=None, raster_height = 500, _3d=False, log=T
             if s_max > _max:
                 _max = s_max
         eye_vpp = (_max-_min)
+
+    n_slices = len(slices)
 
     # eye parameters
     uis_in_waveform = 3.0
@@ -238,6 +291,8 @@ def plot_eye_density(signal, eye_vpp=None, raster_height = 500, _3d=False, log=T
     raster_width = int(raster_height*uis_in_waveform)
 
     eye_raster = np.zeros((raster_width, raster_height))
+    if previous_data:
+        eye_raster += previous_data
 
     # run on multiple processes, will be quicker for large data sets
     if pools != None:
@@ -248,7 +303,8 @@ def plot_eye_density(signal, eye_vpp=None, raster_height = 500, _3d=False, log=T
         for n in range(pools):
             t = times[n*samples_per_pool:(n+1)*samples_per_pool]
             s = slices[n*samples_per_pool:(n+1)*samples_per_pool]
-            args = dict(times=t, slices=s, raster_height=raster_height, raster_width=raster_width, uis_in_waveform=uis_in_waveform, eye_vpp=eye_vpp, y_padding=y_padding)
+            args = dict(times=t, slices=s, raster_height=raster_height, raster_width=raster_width,
+                        uis_in_waveform=uis_in_waveform, eye_vpp=eye_vpp, y_padding=y_padding)
             segments.append(args)
 
         p = Pool(pools)
@@ -259,48 +315,63 @@ def plot_eye_density(signal, eye_vpp=None, raster_height = 500, _3d=False, log=T
     else:
         for m, t in enumerate(times):
             for n, sample in enumerate(slices[m][:-1]):
-                x0, y0 = float_to_raster_index(t[n], slices[m][n], -0.5*(uis_in_waveform-1.0), -0.5*y_padding*eye_vpp, 0.5*uis_in_waveform+0.5, 0.5*y_padding*eye_vpp, raster_height, raster_width)
-                x1, y1 = float_to_raster_index(t[n+1], slices[m][n+1], -0.5*(uis_in_waveform-1.0), -0.5*y_padding*eye_vpp, 0.5*uis_in_waveform+0.5, 0.5*y_padding*eye_vpp, raster_height, raster_width)  
+                x0, y0 = float_to_raster_index(t[n], slices[m][n], -0.5*(uis_in_waveform-1.0), -0.5*y_padding*eye_vpp,
+                                               0.5*uis_in_waveform+0.5, 0.5*y_padding*eye_vpp, raster_height, raster_width)
+                x1, y1 = float_to_raster_index(t[n+1], slices[m][n+1], -0.5*(uis_in_waveform-1.0), -0.5*y_padding*eye_vpp,
+                                               0.5*uis_in_waveform+0.5, 0.5*y_padding*eye_vpp, raster_height, raster_width)
                 plot_raster_line(x0, y0, x1, y1, eye_raster)
 
     # apply log scaling to data 
     _eye_raster = copy(eye_raster)
-    if log is True:
-        eye_raster +=1
-        eye_raster = np.log(eye_raster)
-    if _3d:
-        _raster_width = int(raster_height*uis_in_plot)
-        x = (2*np.arange(_raster_width)/float(_raster_width) - 0.5)
-        y = eye_vpp*(np.arange(raster_height)/float(raster_height) - 0.5)
-        xx, yy = np.meshgrid(x,y)
+    if plot:
+        if log is True:
+            eye_raster +=1
+            eye_raster = np.log(eye_raster)
+        if _3d:
+            _raster_width = int(raster_height*uis_in_plot)
+            x = (2*np.arange(_raster_width)/float(_raster_width) - 0.5)
+            y = eye_vpp*(np.arange(raster_height)/float(raster_height) - 0.5)
+            xx, yy = np.meshgrid(x,y)
 
-        hf = plt.figure()
-        ha = hf.add_subplot(111, projection='3d')
-        cutoff = (uis_in_waveform-uis_in_plot)*raster_height
-        __eye_raster = eye_raster[int(cutoff/2):-int(cutoff/2),:]
-        __eye_raster = ndimage.gaussian_filter(__eye_raster, 2)
-        ha.plot_surface(xx, yy, __eye_raster.T[::-1,:], cmap=cmap)
-    else:
-        plt.imshow(eye_raster.T[::-1,:], aspect = plot_aspect_ratio, extent=[-0.5*(uis_in_waveform-1.0),0.5*uis_in_waveform+0.5,-0.5*y_padding*eye_vpp,0.5*y_padding*eye_vpp], cmap=cmap, #plt.cm.inferno, #nipy_spectral
-                interpolation='gaussian')
+            hf = plt.figure()
+            ha = hf.add_subplot(111, projection='3d')
+            cutoff = (uis_in_waveform-uis_in_plot)*raster_height
+            __eye_raster = eye_raster[int(cutoff/2):-int(cutoff/2),:]
+            __eye_raster = ndimage.gaussian_filter(__eye_raster, 2)
+            ha.plot_surface(xx, yy, __eye_raster.T[::-1,:], cmap=cmap)
+        else:
+            plt.imshow(eye_raster.T[::-1,:], aspect = plot_aspect_ratio,
+                       extent=[-0.5*(uis_in_waveform-1.0),0.5*uis_in_waveform+0.5,
+                               -0.5*y_padding*eye_vpp,0.5*y_padding*eye_vpp],
+                       cmap=cmap, interpolation='gaussian')
+            if sample_lines and oversampling:
+                for n in range(oversampling):
+                    plt.axvline(n/float(oversampling), color="r")
 
-    plt.xlabel("Time [UI]")
-    plt.ylabel("Signal")
-    plt.title("Eye Diagram (Density) "+title)
-    plt.xlim([-0.5*uis_in_plot + 0.5,uis_in_plot*0.5 + 0.5])
+        plt.xlabel("Time [UI]")
+        plt.ylabel("Signal")
+        plt.title("Eye Diagram (Density) "+title)
+        plt.xlim([-0.5*uis_in_plot + 0.5,uis_in_plot*0.5 + 0.5])
 
-    return _eye_raster
+    eye = EyeData(_eye_raster, (-0.5*(uis_in_waveform-1.0), 0.5*uis_in_waveform+0.5),
+                  (-0.5*y_padding*eye_vpp, 0.5*y_padding*eye_vpp), raster_width,
+                  n_slices, raster_height)
+
+    return eye
 
 
 def pool_rasterize(args):
     return rasterize(**args)
 
+
 def rasterize(times, slices, raster_height, raster_width, uis_in_waveform, y_padding, eye_vpp):
     eye_raster = np.zeros((raster_width, raster_height))
     for m, t in enumerate(times):
         for n, sample in enumerate(slices[m][:-1]):
-            x0, y0 = float_to_raster_index(t[n], slices[m][n], -0.5*(uis_in_waveform-1.0), -0.5*y_padding*eye_vpp, 0.5*uis_in_waveform+0.5, 0.5*y_padding*eye_vpp, raster_height, raster_width)
-            x1, y1 = float_to_raster_index(t[n+1], slices[m][n+1], -0.5*(uis_in_waveform-1.0), -0.5*y_padding*eye_vpp, 0.5*uis_in_waveform+0.5, 0.5*y_padding*eye_vpp, raster_height, raster_width)  
+            x0, y0 = float_to_raster_index(t[n], slices[m][n], -0.5*(uis_in_waveform-1.0), -0.5*y_padding*eye_vpp,
+                                           0.5*uis_in_waveform+0.5, 0.5*y_padding*eye_vpp, raster_height, raster_width)
+            x1, y1 = float_to_raster_index(t[n+1], slices[m][n+1], -0.5*(uis_in_waveform-1.0), -0.5*y_padding*eye_vpp,
+                                           0.5*uis_in_waveform+0.5, 0.5*y_padding*eye_vpp, raster_height, raster_width)
             plot_raster_line(x0, y0, x1, y1, eye_raster)
     return eye_raster
 
@@ -309,7 +380,8 @@ def rasterize(times, slices, raster_height, raster_width, uis_in_waveform, y_pad
 #   Jitter and TIE plotting
 ###################################################################################
 
-def plot_tie(signal, bits_per_sym = 1, alpha=1.0, interp_factor=10, interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=False, label="", title="", verbose=True, *args, **kwargs):
+def plot_tie(signal, bits_per_sym = 1, alpha=1.0, interp_factor=10, interp_span=128, remove_ends=100,
+             recovery="constant_f", est_const_f=False, label="", title="", verbose=True, *args, **kwargs):
     if verbose:
         print("\n* Plotting Total Interval Error (TIE) trend.")
         print("\tSignal.name = %s"%signal.name)
@@ -323,7 +395,9 @@ def plot_tie(signal, bits_per_sym = 1, alpha=1.0, interp_factor=10, interp_span=
         plt.legend()
 
 
-def plot_jitter_histogram(signal, bins=100, alpha=1.0, bits_per_sym = 1, interp_factor=10, interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=False, label="", title="", verbose=True, *args, **kwargs):
+def plot_jitter_histogram(signal, bins=100, alpha=1.0, bits_per_sym = 1, interp_factor=10,
+                          interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=False,
+                          label="", title="", verbose=True, *args, **kwargs):
     if verbose:
         print("\n* Plotting Jitter Histogram.")
         print("\tSignal.name = %s"%signal.name)
@@ -356,6 +430,20 @@ def slice_edge_triggered(td, ui_samples):
     """
     crossings = crossing_times(td)
     times, slices = segment_data(td, crossings, ui_samples)
+    return times, slices
+
+
+@timer
+def slice_frame_sync(signal, interpolated, sync_code, pulse_fir, payload_len,
+                     oversampling, interp_factor, sync_pos):
+    """ Slices data based off of correlation to sync pattern in framed data
+    """
+    # get crossings UNINTERPOLATED
+    crossings = frame_sync_recovery(signal, sync_code, pulse_fir, payload_len,
+                                    oversampling, sync_pos="center")
+    # multiply crossings with oversampling so it corresponds to interpolated waveform
+    crossings_upsampled = crossings*interp_factor
+    times, slices = segment_data(interpolated, crossings_upsampled, oversampling*interp_factor)
     return times, slices
 
 @timer

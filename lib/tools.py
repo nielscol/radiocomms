@@ -28,6 +28,7 @@ def sinx_x(x):
     return 1.0 if x==0 else sin(pi*x)/(pi*x)
 v_sinx_x = np.vectorize(sinx_x, otypes=[float])
 
+
 @timer
 def sinx_x_interp(x, factor, span, remove_extra=True):
     # make sinx_x pulse shape
@@ -46,8 +47,10 @@ def sinx_x_interp(x, factor, span, remove_extra=True):
         interpolated = interpolated[:len(x)*factor]
     return interpolated
 
+
 def q(x):
     return 0.5*erfc(x/SQRT2)
+
 
 def raised_cos(t, tbit, rolloff):
     tbit=float(tbit)
@@ -60,5 +63,6 @@ def raised_cos(t, tbit, rolloff):
             return 0.5
     else:
         return (1.0/tbit)*sinx_x(t/tbit)*np.cos(pi*rolloff*t/tbit)/(1.0-(2*rolloff*t/tbit)**2)
+
 v_raised_cos = np.vectorize(raised_cos, otypes=[float])
 

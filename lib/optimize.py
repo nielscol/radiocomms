@@ -4,12 +4,13 @@
 from math import sqrt
 import numpy as np
 from copy import copy
+from time import clock
 
 ######################################################################################
 # Golden section search algorithm
 ######################################################################################
 
-def gss(func, arg, params, _min, _max, target=0.0, conv_tol=1e-5, norm="l1"):
+def gss(func, arg, params, _min, _max, target=0.0, conv_tol=1e-5, norm="l1", timeout=None):
     """Golden section search minimization algorithm. Finds arg = argmin(func).
     args:
         func - function to minimize
@@ -32,8 +33,12 @@ def gss(func, arg, params, _min, _max, target=0.0, conv_tol=1e-5, norm="l1"):
     guess_l = a = _min
     guess_h = b = _max
     delta = 0
+    t0=clock()
     # Iterate until termination criterion is reached
     while err > conv_tol:
+        if timeout and clock() - t0 > timeout:
+            print("!!!!!! Timeout of %f s exceeded in golden section search. Returning current value..."%timeout)
+            break
         delta = (phi - 1.0)*(b - a)
         guess_a = a + delta
         guess_b = b - delta
@@ -71,15 +76,22 @@ def grad(f, args, params, deriv_step):
         _params[arg] -= deriv_step
     return vals
 
+
 def line_slice_f(f, grad_f, args, params):
+    """ Makes parametric line function following the gradient of f at the point
+        in the latest iteration of the gradient descent solver
+    """
     _params = copy(params)
     def f_slice(gamma):
+        """ Line folloing gradient of f passing point p defined in the params dictionary
+        """
         for n, arg in enumerate(args):
             _params[arg] = params[arg] - gamma*grad_f[n]
         return f(**_params)
     return f_slice
 
-def grad_descent(f, args, params, conv_tol=1e-5):
+
+def grad_descent(f, args, params, conv_tol=1e-5, timeout=None):
     """Gradient descent solver
     args:
         f - input cost function to minimize
@@ -96,7 +108,11 @@ def grad_descent(f, args, params, conv_tol=1e-5):
     curr = np.array([params[arg] for arg in args])
     last = np.full(len(args), np.inf)
     deriv_step = conv_tol*np.linalg.norm(curr)
+    t0 = clock()
     while np.linalg.norm(curr-last)/np.linalg.norm(curr) > conv_tol:
+        if timeout and clock() - t0 > timeout:
+            print("!!!!!! Timeout of %f s exceeded in gradient descent operation. Returning current value..."%timeout)
+            break
         grad_f = grad(f, args, params, deriv_step)
         f_slice = line_slice_f(f, grad_f, args, params)
         gamma = gss(f_slice, "gamma", target=0, params={}, _min=0.0, _max=1.0, conv_tol=1e-5, norm='l1')

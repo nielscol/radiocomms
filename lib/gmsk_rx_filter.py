@@ -63,10 +63,13 @@ def gmsk_tx_filter(k, m, bt, fs, dt=0.0, autocompute_fd=False, verbose=True, *ar
     # integral is pi/2
     tx_fir *= pi/(2.0*sum(tx_fir))
 
-    return make_signal(td=tx_fir, fs=fs, force_even_samples=False, name="gmsk_tx_fir_bt_%.2f"%bt, autocompute_fd=autocompute_fd, verbose=False)
+    return make_signal(td=tx_fir, fs=fs, force_even_samples=False,
+                       name="gmsk_tx_fir_bt_%.2f"%bt, autocompute_fd=autocompute_fd, verbose=False)
 
 
-def gmsk_matched_kaiser_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0, delta=1e-3, autocompute_fd=False, verbose=True, *args, **kwargs):
+def gmsk_matched_kaiser_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0,
+                                  delta=1e-3, autocompute_fd=False, verbose=True,
+                                  *args, **kwargs):
     """ Design GMSK receive filter
         k      : samples/symbol
         m      : fir span
@@ -115,10 +118,13 @@ def gmsk_matched_kaiser_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0, delta=1
     rx_fir = np.fft.fftshift(np.fft.ifft(rx_fd))
     rx_fir = np.real(rx_fir)*k
 
-    return make_signal(td=rx_fir, fs=fs, force_even_samples=False, name="gmsk_kaiser_matched_rx_fir_bt_tx_%.2f_bt_comp_%.2f"%(bt_tx, bt_composite), autocompute_fd=autocompute_fd, verbose=False)
+    return make_signal(td=rx_fir, fs=fs, force_even_samples=False,
+                       name="gmsk_kaiser_matched_rx_fir_bt_tx_%.2f_bt_comp_%.2f"%(bt_tx, bt_composite),
+                       autocompute_fd=autocompute_fd, verbose=False)
 
 
-def kaiser_composite_tx_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0, delta=1e-3, autocompute_fd=False, verbose=True, *args, **kwargs):
+def kaiser_composite_tx_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0, delta=1e-3,
+                                  autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Filter given by gmsk_matched_kaiser_rx_filter() and gmsk_tx_filter() together
         i.e. Kaiser filer but with some out-of-band supression
         k      : samples/symbol
@@ -163,10 +169,13 @@ def kaiser_composite_tx_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0, delta=1
     comp_fir = np.fft.fftshift(np.fft.ifft(comp_fd))
     comp_fir = np.real(comp_fir)*k
 
-    return make_signal(td=comp_fir, fs=fs, force_even_samples=False, name="kaiser_composite_fir_%.2f_bt_comp_%.2f"%(bt_tx, bt_composite), autocompute_fd=autocompute_fd, verbose=False)
+    return make_signal(td=comp_fir, fs=fs, force_even_samples=False,
+                       name="kaiser_composite_fir_%.2f_bt_comp_%.2f"%(bt_tx, bt_composite),
+                       autocompute_fd=autocompute_fd, verbose=False)
 
 
-def gmsk_matched_rcos_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0, delta=1e-3, autocompute_fd=False, verbose=True, *args, **kwargs):
+def gmsk_matched_rcos_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0, delta=1e-3,
+                                autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Design GMSK receive filter for raised cosine
         k      : samples/symbol
         m      : fir span
@@ -217,10 +226,14 @@ def gmsk_matched_rcos_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0, delta=1e-
     rx_fir = np.fft.fftshift(np.fft.ifft(rx_fd))
     rx_fir = np.real(rx_fir)*k
 
-    return make_signal(td=rx_fir, fs=fs, force_even_samples=False, name="gmsk_rcos_matched_fir_%.2f_bt_comp_%.2f"%(bt_tx, bt_composite), autocompute_fd=autocompute_fd, verbose=False)
+    return make_signal(td=rx_fir, fs=fs, force_even_samples=False,
+                       name="gmsk_rcos_matched_fir_%.2f_bt_comp_%.2f"%(bt_tx, bt_composite),
+                       autocompute_fd=autocompute_fd, verbose=False)
 
 
-def rcos_composite_tx_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0, delta=1e-3, autocompute_fd=False, verbose=True, *args, **kwargs):
+def rcos_composite_tx_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0,
+                                delta=1e-3, autocompute_fd=False,
+                                verbose=True, *args, **kwargs):
     """ Raised cosine response including out of band supression
         k      : samples/symbol
         m      : fir span
@@ -266,7 +279,9 @@ def rcos_composite_tx_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0, delta=1e-
     comp_fir = np.fft.fftshift(np.fft.ifft(comp_fd))
     comp_fir = np.real(comp_fir)*k
 
-    return make_signal(td=comp_fir, fs=fs, force_even_samples=False, name="rcos_composite_fir_%.2f_bt_comp_%.2f"%(bt_tx, bt_composite), autocompute_fd=autocompute_fd, verbose=False)
+    return make_signal(td=comp_fir, fs=fs, force_even_samples=False,
+                       name="rcos_composite_fir_%.2f_bt_comp_%.2f"%(bt_tx, bt_composite),
+                       autocompute_fd=autocompute_fd, verbose=False)
 
 
 #############################################################################
@@ -421,13 +436,16 @@ def besseli0(z):
 
     return y
 
+
 def q(x):
     return 0.5*erfc(x/sqrt(2))
+
 
 def sinx_x(x):
     return 1.0 if x==0 else sin(pi*x)/(pi*x)
 
 v_sinx_x = np.vectorize(sinx_x, otypes=[float])
+
 
 def raised_cos(t, tbit, rolloff):
     tbit=float(tbit)
@@ -440,6 +458,7 @@ def raised_cos(t, tbit, rolloff):
             return 0.5
     else:
         return (1.0/tbit)*sinx_x(t/tbit)*np.cos(pi*rolloff*t/tbit)/(1.0-(2*rolloff*t/tbit)**2)
+
 v_raised_cos = np.vectorize(raised_cos, otypes=[float])
 
 #import matplotlib.pyplot as plt

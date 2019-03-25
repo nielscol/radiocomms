@@ -4,7 +4,42 @@
 
 import numpy as np
 from lib.tools import *
+from lib.sync import make_sync_fir, detect_sync
+from lib.transforms import fir_correlate
 import math
+
+
+def frame_sync_recovery(signal, sync_code, pulse_fir, payload_len, oversampling, sync_pos="center"):
+    sync_fir = make_sync_fir(sync_code, pulse_fir, oversampling)
+    correlation = fir_correlate(signal, sync_fir, oversampling)
+    peak_indices, peak_values = detect_sync(correlation, sync_code, payload_len, oversampling)
+    crossings = []
+    n_samples = len(correlation.td)
+    s_len = int(len(sync_code)*oversampling)
+    p_len = int(payload_len*oversampling)
+    f_len = s_len + p_len
+    c_offset = int(p_len/2.0)
+    edge_center_delta = int(oversampling/2)
+    for sync_index in peak_indices:
+        if sync_pos == "center":
+            lower = sync_index - c_offset
+            lower = 0 if lower < 0 else lower
+            upper = sync_index + s_len + c_offset
+            upper = n_samples if upper > n_samples else upper
+            for n in range(sync_index-c_offset, sync_index+s_len+c_offset, oversampling):
+                crossing = n - edge_center_delta
+                if crossing >= lower and crossing < upper:
+                    crossings.append(crossing)
+        elif sync_pos == "start":
+            lower = sync_index
+            upper = sync_index + f_len
+            upper = n_samples if upper > n_samples else upper
+            for n in range(sync_index, sync_index+f_len, oversampling):
+                crossing = n - edge_center_delta
+                if crossing >= lower and crossing < upper:
+                    crossings.append(crossing)
+    return np.array(crossings)
+
 
 def constant_f_recovery(td, ui_samples, est_const_f=True):
     """ Recovers a constant frequency clock
@@ -35,7 +70,8 @@ def crossing_times(td):
             frac_crossings.append(td_n-(td[td_n]/float(td[td_n+1]-td[td_n])))
         elif td_n > 0 and td[td_n] == 0.0 and td[td_n-1] != 0:
             frac_crossings.append(float(td_n))
-        elif td_n+1 < td_len and cross_n+1 < n_crossings and td[td_n] != 0.0 and td[td_n+1] == 0 and td_n+1 != crossings[cross_n+1]:
+        elif (td_n+1 < td_len and cross_n+1 < n_crossings and td[td_n] != 0.0
+              and td[td_n+1] == 0 and td_n+1 != crossings[cross_n+1]):
             frac_crossings.append(float(td_n+1))
     return frac_crossings
 
@@ -88,7 +124,8 @@ def constant_f_clk_crossings(clk_period, clk_phase, uis):
 
 
 @timer
-def get_tie(signal, bits_per_sym = 1, interp_factor=10, interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=True): # "constant_f" 
+def get_tie(signal, bits_per_sym = 1, interp_factor=10, interp_span=128,
+            remove_ends=100, recovery="constant_f", est_const_f=True): # "constant_f" 
     td = signal.td[remove_ends:]
     td = td[:-remove_ends]
     interpolated = sinx_x_interp(td, interp_factor, interp_span)

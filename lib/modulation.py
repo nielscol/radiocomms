@@ -11,7 +11,9 @@ from scipy.special import erfc
 SQRT2 = sqrt(2.0)
 SQRTLN2 = sqrt(log(2.0))
 
-def generate_msk_baseband(message, oversampling, name="", binary_message=True, autocompute_fd=False, verbose=True, *args, **kwargs):
+def generate_msk_baseband(message, oversampling, name="",
+                          binary_message=True, autocompute_fd=False,
+                          verbose=True, *args, **kwargs):
     """ Generates I/Q signals according to MSK modulation.
         Args:
             message: bit stream if binary_message=True, or floaring point valued signal [-1,1] otherwise
@@ -37,16 +39,25 @@ def generate_msk_baseband(message, oversampling, name="", binary_message=True, a
     i = np.cos(msk_phase)
     q = np.sin(msk_phase)
     # make signal objects
-    sig_i = make_signal(td=i, fs=message.fs*oversampling, bitrate=0.5*message.bitrate, name=name+"_msk_i_component", autocompute_fd=autocompute_fd, verbose=False)
-    sig_q = make_signal(td=q, fs=message.fs*oversampling, bitrate=0.5*message.bitrate, name=name+"_msk_i_component", autocompute_fd=autocompute_fd, verbose=False)
+    sig_i = make_signal(td=i, fs=message.fs*oversampling, bitrate=0.5*message.bitrate,
+                        name=name+"_msk_i_component", autocompute_fd=autocompute_fd, verbose=False)
+    sig_q = make_signal(td=q, fs=message.fs*oversampling, bitrate=0.5*message.bitrate,
+                        name=name+"_msk_i_component", autocompute_fd=autocompute_fd, verbose=False)
 
     return sig_i, sig_q
 
+
 def gmsk_pulse(t, bt, tbit):
+    """ Makes generalized pulse shape for GMSK Tx signal, before integration
+    """
     return (1/(2.0*tbit))*(q(2*pi*bt*(t-0.5*tbit)/SQRTLN2)-q(2*pi*bt*(t+0.5*tbit)/SQRTLN2))
+
 v_gmsk_pulse = np.vectorize(gmsk_pulse, otypes=[float])
 
-def generate_gmsk_baseband(message, oversampling, bt, pulse_span, name="", binary_message=True, autocompute_fd=False, verbose=True, *args, **kwargs):
+
+def generate_gmsk_baseband(message, oversampling, bt, pulse_span, name="",
+                           binary_message=True, autocompute_fd=False,
+                           verbose=True, *args, **kwargs):
     """ Generates I/Q signals according to GMSK modulation.
         Args:
             message: bit stream if binary_message=True, or floaring point valued signal [-1,1] otherwise
@@ -81,12 +92,17 @@ def generate_gmsk_baseband(message, oversampling, bt, pulse_span, name="", binar
     i = np.cos(gmsk_phase)
     q = np.sin(gmsk_phase)
     # make signal objects
-    sig_i = make_signal(td=i, fs=message.fs*oversampling, bitrate=0.5*message.bitrate, name=name+"_msk_i_component", autocompute_fd=autocompute_fd, verbose=False)
-    sig_q = make_signal(td=q, fs=message.fs*oversampling, bitrate=0.5*message.bitrate, name=name+"_msk_i_component", autocompute_fd=autocompute_fd, verbose=False)
+    sig_i = make_signal(td=i, fs=message.fs*oversampling, bitrate=0.5*message.bitrate,
+                        name=name+"_msk_i_component", autocompute_fd=autocompute_fd, verbose=False)
+    sig_q = make_signal(td=q, fs=message.fs*oversampling, bitrate=0.5*message.bitrate,
+                        name=name+"_msk_i_component", autocompute_fd=autocompute_fd, verbose=False)
 
     return sig_i, sig_q
 
-def upconvert_baseband(carrier_f, i=None, q=None, amplitude=1.0, auto_upsample=True, auto_sa_cyc=20, manual_upsample_factor=1, interp_span=128, name="", autocompute_fd=False, verbose=True, *args, **kwargs):
+
+def upconvert_baseband(carrier_f, i=None, q=None, amplitude=1.0, auto_upsample=True,
+                       auto_sa_cyc=20, manual_upsample_factor=1, interp_span=128,
+                       name="", autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Mixes I/Q basebands components to carrier frequency. By default tries to upsample data to keep
         approximately auto_sa_cyc samples per carrier cycle. Will only upsample by integer factors, so the
         nearness of the number of samples per carrier cycle to auto_sa_cyc depends on this.
@@ -120,9 +136,13 @@ def upconvert_baseband(carrier_f, i=None, q=None, amplitude=1.0, auto_upsample=T
     time = np.arange(len(_i))/float(fs*interp_factor)
     rf = amplitude*(np.cos(2*pi*carrier_f*time)*_i - np.sin(2*pi*carrier_f*time)*_q)
 
-    return make_signal(td=rf, fs=fs*interp_factor, bitrate=bitrate, name=name+"_upconverted", autocompute_fd=autocompute_fd, verbose=False)
+    return make_signal(td=rf, fs=fs*interp_factor, bitrate=bitrate,
+                       name=name+"_upconverted", autocompute_fd=autocompute_fd, verbose=False)
+
 
 def downconvert_rf(carrier_f, rf, name="", autocompute_fd=False, verbose=True, *args, **kwargs):
+    """ Mixes RF to lower frequency, with IQ components
+    """
     time = np.arange(len(rf.td))/float(rf.fs)
     i = np.cos(2*pi*carrier_f*time)*rf.td
     q = np.sin(2*pi*carrier_f*time)*rf.td
@@ -130,12 +150,20 @@ def downconvert_rf(carrier_f, rf, name="", autocompute_fd=False, verbose=True, *
     #plt.plot(np.cos(2*pi*carrier_f*time))
     #plt.plot(i)
     #plt.show()
-    i_sig = make_signal(td=i, fs=rf.fs, bitrate=rf.bitrate/2, name=name+"_downconverted", autocompute_fd=autocompute_fd, verbose=False)
-    q_sig = make_signal(td=q, fs=rf.fs, bitrate=rf.bitrate/2, name=name+"_downconverted", autocompute_fd=autocompute_fd, verbose=False)
+    i_sig = make_signal(td=i, fs=rf.fs, bitrate=rf.bitrate/2, name=name+"_downconverted",
+                        autocompute_fd=autocompute_fd, verbose=False)
+    q_sig = make_signal(td=q, fs=rf.fs, bitrate=rf.bitrate/2, name=name+"_downconverted",
+                        autocompute_fd=autocompute_fd, verbose=False)
 
     return i_sig, q_sig
 
+
 def demodulate_gmsk(i, q, oversampling, name="", autocompute_fd=False, verbose=True, *args, **kwargs):
-    demod_td = (2.0/pi)*oversampling*np.diff(np.unwrap(np.arctan2(q.td,i.td)))
-    return make_signal(td=demod_td, fs=i.fs, bitrate=i.bitrate+q.bitrate, name=name+"_gmsk_demodulated", autocompute_fd=autocompute_fd, verbose=False)
+    """ Takes unwrapped argument of IQ signals and then calculates a scaled finite difference (like derivative)
+    """
+    demod_td = np.zeros(len(i.td))
+    demod_td[:-1] = (2.0/pi)*oversampling*np.diff(np.unwrap(np.arctan2(q.td,i.td)))
+    demod_td[-1] = demod_td[-2] # crappy way to make up for a lost sample from using np.diff
+    return make_signal(td=demod_td, fs=i.fs, bitrate=i.bitrate+q.bitrate, name=name+"_gmsk_demodulated",
+                       force_even_samples=False, autocompute_fd=autocompute_fd, verbose=False)
 

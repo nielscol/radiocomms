@@ -22,12 +22,14 @@ def convert_to_unsigned(signal, autocompute_fd=False, verbose=True, *args, **kwa
     else:
         return signal
 
+
 def convert_to_signed(signal, autocompute_fd=False, verbose=True, *args, **kwargs):
     if not signal.signed:
         new_td = signal.td - 2**(signal.bits-1)
         return make_signal(td=new_td, fs = signal.fs, bits=signal.bits, bitrate=signal.bitrate, signed=True, autocompute_fd=autocompute_fd, name=signal.name, verbose=False, *args, **kwargs)
     else:
         return signal
+
 
 def convert_to_bitstream(signal, autocompute_fd=False, verbose=True, *args, **kwargs):
     N = signal.bits
@@ -43,26 +45,29 @@ def convert_to_bitstream(signal, autocompute_fd=False, verbose=True, *args, **kw
 ##########################################################################################
 
 
-def butter_lowpass(cutoff, fs, order=5):
+def _butter_lowpass(cutoff, fs, order=5):
     nyq = 0.5 * fs
     normal_cutoff = cutoff / nyq
     b, a = butter(order, normal_cutoff, btype='low', analog=False)
     return b, a
 
+
 def butter_lpf(signal, cutoff, order=5, autocompute_fd=False, verbose=True, *args, **kwargs):
-    b, a = butter_lowpass(cutoff, signal.fs, order=order)
+    b, a = _butter_lowpass(cutoff, signal.fs, order=order)
     filt_td = lfilter(b, a, signal.td)
     filt_td = filt_td.astype(signal.td.dtype)
     return make_signal(td=filt_td, fs = signal.fs, bitrate=signal.bitrate, bits=signal.bits, signed=signal.signed, autocompute_fd=autocompute_fd, name=signal.name, verbose=False, *args, **kwargs)
 
-def cheby2_lowpass(cutoff, fs, stop_atten, order=5):
+
+def _cheby2_lowpass(cutoff, fs, stop_atten, order=5):
     nyq = 0.5 * fs
     normal_cutoff = cutoff / nyq
     b, a = cheby2(N=order, rs=stop_atten, Wn=normal_cutoff, btype='low', analog=False)
     return b, a
 
+
 def cheby2_lpf(signal, cutoff, stop_atten, order=5, autocompute_fd=False, verbose=True, *args, **kwargs):
-    b, a = cheby2_lowpass(cutoff, signal.fs, stop_atten, order=order)
+    b, a = _cheby2_lowpass(cutoff, signal.fs, stop_atten, order=order)
     filt_td = lfilter(b, a, signal.td)
     filt_td = filt_td.astype(signal.td.dtype)
     return make_signal(td=filt_td, fs = signal.fs, bitrate=signal.bitrate, bits=signal.bits, signed=signal.signed, autocompute_fd=autocompute_fd, name=signal.name, verbose=False, *args, **kwargs)
@@ -128,6 +133,7 @@ def add_noise(signal, rms, autocompute_fd=False, verbose=True, *args, **kwargs):
     noise = np.random.normal(0.0, rms, len(signal.td))
     return make_signal(td=signal.td+noise, fs = signal.fs, bits=signal.bits, signed=signal.signed, bitrate=signal.bitrate, autocompute_fd=autocompute_fd, name=signal.name+"_added_noise", verbose=False, *args, **kwargs)
 
+
 def gaussian_fade(signal, f, autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Currently this is arbitrary....
     """
@@ -157,6 +163,7 @@ def scale_to_fill_range(signal, autocompute_fd=False, verbose=True, *args, **kwa
         print("\n* Forced signal to fill range of %d bits"%signal.bits)
         print("\t* Source audio effective bits = %f"%eff_sig_bits)
     return make_signal(td=new_td, fs = signal.fs, bits=signal.bits, bitrate=signal.bitrate, signed=signal.signed, autocompute_fd=autocompute_fd, name=signal.name, verbose=False, *args, **kwargs)
+
 
 def rescale_signal(signal, factor, autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Rescales signal
@@ -217,6 +224,7 @@ def filter_and_downsample(signal, n, order=None, ftype="iir", autocompute_fd=Fal
         td = decimate(x=signal.td, q=n, n=order, ftype=ftype)
     return make_signal(td=td, fs = signal.fs/float(n), bits=signal.bits, bitrate=bitrate, signed=signal.signed, autocompute_fd=autocompute_fd, name=signal.name +"-filtdecim", verbose=verbose, *args, **kwargs)
 
+
 def fft_downsample(signal, n, adjust_bitrate=False, autocompute_fd=False, verbose=True, *args, **kwargs):
     dtype = signal.td.dtype
     if verbose:
@@ -230,6 +238,7 @@ def fft_downsample(signal, n, adjust_bitrate=False, autocompute_fd=False, verbos
     else:
         td = np.array(resample(signal.td, num = int(round(signal.samples/float(n)))), dtype=dtype)
     return make_signal(td=td, fs = signal.fs/float(n), bits=signal.bits, bitrate=bitrate, signed=signal.signed, autocompute_fd=autocompute_fd, name=signal.name +"-fftdecim", verbose=verbose, *args, **kwargs)
+
 
 def fft_resample(signal, n_samples, adjust_bitrate=False, autocompute_fd=False, verbose=True, *args, **kwargs):
     dtype = signal.td.dtype
@@ -245,6 +254,7 @@ def fft_resample(signal, n_samples, adjust_bitrate=False, autocompute_fd=False, 
         td = resample(signal.td, num=n_samples)
         td = td.astype(dtype)
     return make_signal(td=td, fs = signal.fs*(n_samples/float(len(signal.td))), bits=signal.bits, bitrate=bitrate, signed=signal.signed, autocompute_fd=autocompute_fd, name=signal.name +"-fftdecim", verbose=verbose, *args, **kwargs)
+
 
 def no_filter_downsample(signal, n, adjust_bitrate=False, autocompute_fd=False, verbose=True, *args, **kwargs):
     if verbose:
@@ -274,6 +284,7 @@ def corrupt_sample(sample, ber, bits):
 
 v_corrupt_samples = np.vectorize(corrupt_sample, otypes=[np.int32])
 
+
 def corrupt(signal, ber, autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Takes signal, corrupts bits in samples with error rate ber
     """
@@ -292,6 +303,7 @@ def corrupt(signal, ber, autocompute_fd=False, verbose=True, *args, **kwargs):
     else:
         return signal
 
+
 def corrupt_sample_nth_bit(sample, n, ber, bits):
     """ Corrupts only the nth bit of sample with probability ber
     """
@@ -303,8 +315,8 @@ def corrupt_sample_nth_bit(sample, n, ber, bits):
             corrupted += (2**bit)&sample
     return corrupted
 
-
 v_corrupt_samples_nth_bit = np.vectorize(corrupt_sample_nth_bit, otypes=[np.int32])
+
 
 def corrupt_nth_bit_of_samples(signal, n, ber, autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Takes signal, corrupts only nth bit in samples with error rate ber
@@ -348,6 +360,7 @@ def round_truncate_sample(sample, n_in, n_out):
 
 v_round_truncate_samples = np.vectorize(round_truncate_sample, otypes=[np.int32])
 
+
 def truncate_with_rounding(signal, n_bits, autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Takes signal, reduced number of bits per sample to n_bits
     """
@@ -363,6 +376,7 @@ def truncate_with_rounding(signal, n_bits, autocompute_fd=False, verbose=True, *
         return convert_to_signed(signal)
     else:
         return signal
+
 
 def increase_bits(signal, n_bits, autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Takes signal, increases number of bits to be n_bits in total
@@ -472,6 +486,7 @@ def ulaw2linear(ulawbyte):
 v_linear2ulaw = np.vectorize(linear2ulaw, otypes=[np.uint8])
 v_ulaw2linear = np.vectorize(ulaw2linear, otypes=[np.int16])
 
+
 def ulaw_compress(signal, autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Notes: implements u law compression for 16 bit signed input and 8 bit output
     """
@@ -486,6 +501,7 @@ def ulaw_compress(signal, autocompute_fd=False, verbose=True, *args, **kwargs):
     td = np.array(signal.td, dtype=np.int16) # force to signed int16 type for ulaw conversion
     comp_td = v_linear2ulaw(td)
     return make_signal(td=comp_td, fs = signal.fs, bits=8, bitrate=signal.fs*8, signed=False, autocompute_fd=autocompute_fd, name=signal.name+"-ulaw_comp", verbose=False, *args, **kwargs)
+
 
 def ulaw_expand(signal, autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Notes: implements u law compression for 16 bit signed input and 8 bit output

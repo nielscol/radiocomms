@@ -14,7 +14,8 @@ import math
 #Signal = collections.namedtuple("Signal", ["td", "fd", "fs", "samples", "bits", "signed", "fbin", "name"])
 
 class Signal:
-    def __init__(self, td, fd, fs, samples, bits, signed, fbin, name, bitrate=None):
+    def __init__(self, td, fd, fs, samples, bits,
+                 signed, fbin, name, bitrate=None):
         self.td = td
         self.fd = fd
         self.fs = fs
@@ -25,7 +26,19 @@ class Signal:
         self.fbin = fbin
         self.name = name
 
-def make_signal(td=[], fd=[], fs=None, bits=None, bitrate=None, signed=None, name="", autocompute_fd=False, verbose=False, force_even_samples=True, *args, **kwargs):
+
+class EyeData:
+    def __init__(self, eye_data, x_range, y_range, x_len, y_len, n_traces):
+        self.eye_data = eye_data
+        self.h_range = x_range
+        self.v_range = y_range
+        self.x_len = x_len
+        self.y_len = y_len
+        self.n_traces = n_traces
+
+def make_signal(td=[], fd=[], fs=None, bits=None, bitrate=None,
+                signed=None, name="", autocompute_fd=False, verbose=False,
+                force_even_samples=True, *args, **kwargs):
     """Method to assist with creation of Signal objects.
     * Will not automatically compute fd = fft(td) unless autocompute_fd is set. This is to save time
     when not needed.
@@ -76,6 +89,7 @@ def make_signal(td=[], fd=[], fs=None, bits=None, bitrate=None, signed=None, nam
         print("\tSamples = %d, Sampling rate = %d Hz, Bin delta f = %0.2f Hz"%(samples, fs, fbin))
     return Signal(td, fd, fs, samples, bits, signed, fbin, name, bitrate=bitrate)
 
+
 def wav_to_signal(file_name, autocompute_fd=False, verbose=True, *args, **kwargs):
     """ import .wav file and create Signal object for it
     """
@@ -95,7 +109,11 @@ def wav_to_signal(file_name, autocompute_fd=False, verbose=True, *args, **kwargs
     if verbose:
         print("\n* Read .wav file \"%s\""%file_name)
         print("\tSampling rate = %d Hz, Samples = %d"%(fs, len(data)))
-    return make_signal(td=np.array(data, dtype=np.int32), fs=fs, bits=bits, signed=signed, bitrate=fs*bits, name=file_name, autocompute_fd=autocompute_fd, verbose=verbose, *args, **kwargs)
+    return make_signal(td=np.array(data, dtype=np.int32), fs=fs, bits=bits,
+                       signed=signed, bitrate=fs*bits, name=file_name,
+                       autocompute_fd=autocompute_fd, verbose=verbose,
+                       *args, **kwargs)
+
 
 def save_signal_to_wav(signal, file_name, dtype=np.int16, verbose=True, *args, **kwargs):
     if not signal.signed:
@@ -105,6 +123,7 @@ def save_signal_to_wav(signal, file_name, dtype=np.int16, verbose=True, *args, *
     if verbose:
         print("\n* Saving to %s"%file_name)
     wavfile.write(file_name, rate=signal.fs, data=np.array(data, dtype=dtype))
+
 
 def freq_to_index(signal, freq, verbose=True, *args, **kwargs):
     """ computes index of bin in FFT(Signal.td) corresponding provided frequency
@@ -122,7 +141,10 @@ def freq_to_index(signal, freq, verbose=True, *args, **kwargs):
         n = signal.samples - 1
     return int(n)
 
-def generate_quantized_tone(tone_freq, fs, samples, bits, signed=True, noise_lsbs=0.0, autocompute_fd=False, verbose=True, *args, **kwargs):
+
+def generate_quantized_tone(tone_freq, fs, samples, bits, signed=True,
+                            noise_lsbs=0.0, autocompute_fd=False,
+                            verbose=True, *args, **kwargs):
     amplitude = (2**bits - 1)/2.0
     time = np.arange(samples)/float(fs)
     tone = amplitude*np.sin(2*math.pi*tone_freq*time)
@@ -135,9 +157,14 @@ def generate_quantized_tone(tone_freq, fs, samples, bits, signed=True, noise_lsb
         print("\n* Generating quantized sinusoidal signal")
         print("\t* Tone freq = %f,\tfs = %f,\tsamples = %f"%(tone_freq,fs, samples))
         print("\t* Bits per sample = %d,\tsigned = %r,\trms noise in lsbs = %f"%(bits, signed, noise_lsbs))
-    return make_signal(td=td, fs=fs, bits=bits, signed=signed, bitrate=fs*bits, name="quantized_tone_%.0fHz_%d_bits"%(tone_freq, bits), autocompute_fd=autocompute_fd, verbose=False, *args, **kwargs)
+    return make_signal(td=td, fs=fs, bits=bits, signed=signed, bitrate=fs*bits,
+                       name="quantized_tone_%.0fHz_%d_bits"%(tone_freq, bits),
+                       autocompute_fd=autocompute_fd, verbose=False, *args, **kwargs)
 
-def generate_random_bitstream(length, bitrate=1, name="", autocompute_fd=False, verbose=True, *args, **kwargs):
+
+def generate_random_bitstream(length, bitrate=1, name="", autocompute_fd=False,
+                              verbose=True, *args, **kwargs):
     message = np.random.choice([0,1], length)
-    return make_signal(td=message, bits=1, fs=bitrate, bitrate=bitrate, name=name, autocompute_fd=autocompute_fd, verbose=False, *args, **kwargs)
+    return make_signal(td=message, bits=1, fs=bitrate, bitrate=bitrate, name=name,
+                       autocompute_fd=autocompute_fd, verbose=False, *args, **kwargs)
 
