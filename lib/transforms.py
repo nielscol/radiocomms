@@ -6,7 +6,7 @@ import numpy as np
 import math
 from scipy.signal import decimate, resample, butter, cheby2, lfilter, freqz, sawtooth
 from scipy import signal
-from scipy.special import erfinv
+from scipy.special import erfinv, erf
 from lib._signal import *
 from lib.tools import *
 from copy import copy
@@ -78,7 +78,7 @@ def fir_filter(signal, fir, oversampling, remove_extra=True, autocompute_fd=Fals
         raise Exception("Incompatible sampling frequencies for FIR signal (%f) and signal to be filtered (%f)"%(fir.fs, signal.fs))
     filt_td = np.convolve(signal.td, fir.td, mode="full")/float(oversampling)
     if remove_extra:
-        filt_td = filt_td[int(len(fir.td)/2):]
+        filt_td = filt_td[int((len(fir.td)-1)/2):]
         filt_td = filt_td[:len(signal.td)]
     return make_signal(td=filt_td, fs=signal.fs, bitrate=signal.bitrate, name=signal.name+"_filtered_"+fir.name, autocompute_fd=autocompute_fd, verbose=False)
 
@@ -88,7 +88,7 @@ def fir_correlate(signal, fir, oversampling, remove_extra=True, autocompute_fd=F
         raise Exception("Incompatible sampling frequencies for FIR signal (%f) and signal to be correlated (%f)"%(fir.fs, signal.fs))
     filt_td = np.correlate(signal.td, fir.td, mode="full")/float(oversampling)
     if remove_extra:
-        filt_td = filt_td[int(len(fir.td)/2):]
+        filt_td = filt_td[int((len(fir.td)-1)/2):]
         filt_td = filt_td[:len(signal.td)]
     return make_signal(td=filt_td, fs=signal.fs, bitrate=signal.bitrate, name=signal.name+"_correlated_"+fir.name, autocompute_fd=autocompute_fd, verbose=False)
 
@@ -134,13 +134,15 @@ def add_noise(signal, rms, autocompute_fd=False, verbose=True, *args, **kwargs):
     return make_signal(td=signal.td+noise, fs = signal.fs, bits=signal.bits, signed=signal.signed, bitrate=signal.bitrate, autocompute_fd=autocompute_fd, name=signal.name+"_added_noise", verbose=False, *args, **kwargs)
 
 
-def gaussian_fade(signal, f, autocompute_fd=False, verbose=True, *args, **kwargs):
+def gaussian_fade(signal, f, peak_peak, n_sigma, autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Currently this is arbitrary....
     """
     t = np.arange(len(signal.td))/float(signal.fs)
+    ci = erf(n_sigma/np.sqrt(2.0))
     triangle = sawtooth(2*np.pi*f*t, 0.5)
-    fading = np.sqrt(2)*erfinv(0.9973*triangle)
-    fading = fading*(0.9/3.0) + 1.0
+    fading = np.sqrt(2)*erfinv(ci*triangle)
+    r = 10**(-peak_peak/20.0)
+    fading = fading*(1.0/n_sigma)*(r-1)/(r+1) + 1.0
     return make_signal(td=signal.td*fading, fs = signal.fs, bits=signal.bits, signed=signal.signed, bitrate=signal.bitrate, autocompute_fd=autocompute_fd, name=signal.name+"_added_noise", verbose=False, *args, **kwargs)
 
 

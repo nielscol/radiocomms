@@ -43,7 +43,7 @@ def sinx_x_interp(x, factor, span, remove_extra=True):
     upsampled[np.arange(len(x))*factor] = x
     interpolated = np.convolve(upsampled, fir, mode="full")
     if remove_extra:
-        interpolated = interpolated[int(factor*span/2):]
+        interpolated = interpolated[int((fir_len-1)/2):]
         interpolated = interpolated[:len(x)*factor]
     return interpolated
 

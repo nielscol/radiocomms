@@ -102,7 +102,8 @@ def generate_gmsk_baseband(message, oversampling, bt, pulse_span, name="",
 
 def upconvert_baseband(carrier_f, i=None, q=None, amplitude=1.0, auto_upsample=True,
                        auto_sa_cyc=20, manual_upsample_factor=1, interp_span=128,
-                       name="", autocompute_fd=False, verbose=True, *args, **kwargs):
+                       name="", rms_phase_noise=0.0, autocompute_fd=False, verbose=True,
+                       *args, **kwargs):
     """ Mixes I/Q basebands components to carrier frequency. By default tries to upsample data to keep
         approximately auto_sa_cyc samples per carrier cycle. Will only upsample by integer factors, so the
         nearness of the number of samples per carrier cycle to auto_sa_cyc depends on this.
@@ -134,18 +135,21 @@ def upconvert_baseband(carrier_f, i=None, q=None, amplitude=1.0, auto_upsample=T
         _i = sinx_x_interp(_i, interp_factor, interp_span)
         _q = sinx_x_interp(_q, interp_factor, interp_span)
     time = np.arange(len(_i))/float(fs*interp_factor)
-    rf = amplitude*(np.cos(2*pi*carrier_f*time)*_i - np.sin(2*pi*carrier_f*time)*_q)
+    phase_noise = np.random.normal(0.0, rms_phase_noise, len(time))
+    rf = amplitude*(np.cos(2*pi*carrier_f*time + phase_noise)*_i - np.sin(2*pi*carrier_f*time + phase_noise)*_q)
 
     return make_signal(td=rf, fs=fs*interp_factor, bitrate=bitrate,
                        name=name+"_upconverted", autocompute_fd=autocompute_fd, verbose=False)
 
 
-def downconvert_rf(carrier_f, rf, name="", autocompute_fd=False, verbose=True, *args, **kwargs):
+def downconvert_rf(carrier_f, rf, name="", rms_phase_noise=0.0,
+                   autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Mixes RF to lower frequency, with IQ components
     """
     time = np.arange(len(rf.td))/float(rf.fs)
-    i = np.cos(2*pi*carrier_f*time)*rf.td
-    q = np.sin(2*pi*carrier_f*time)*rf.td
+    phase_noise = np.random.normal(0.0, rms_phase_noise, len(rf.td))
+    i = np.cos(2*pi*carrier_f*time + phase_noise)*rf.td
+    q = np.sin(2*pi*carrier_f*time + phase_noise)*rf.td
     #plt.plot(rf.td)
     #plt.plot(np.cos(2*pi*carrier_f*time))
     #plt.plot(i)

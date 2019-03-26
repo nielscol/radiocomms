@@ -3,7 +3,7 @@
 """
 import numpy as np
 import matplotlib.pyplot as plt
-from math import pi
+from math import pi, sqrt
 from lib._signal import generate_random_bitstream, make_signal
 from lib.modulation import generate_msk_baseband, generate_gmsk_baseband, upconvert_baseband, downconvert_rf, demodulate_gmsk
 from lib.plot import *  # Assuming all plotting methods come from here
@@ -30,13 +30,18 @@ if __name__ == "__main__":
     TX_FIR_SPAN = 4.0      # extent of FIR filters in # of symbols
     RX_FIR_SPAN = 8.0
 
-    AGWN_RMS = 1.0 # 0.00707 -> 40 dB SNR, 0.0707 -> 20 dB, 0.223 -> 10 dB, 0.4 -> 6 dB
+    AGWN_RMS = 0.0707 # 0.00707 -> 40 dB SNR, 0.0707 -> 20 dB, 0.223 -> 10 dB, 0.4 -> 6 dB
 
     SPECTRAL_EFF = 1.0 # bits/s/Hz
     BW = BIT_RATE/(SPECTRAL_EFF) # theoretical signal bandwidth
-    CARRIER = 5.0*BW
+    TX_LO = 5.0*BW
+    RX_LO = 5.0*BW
+    LO_PHASE_NOISE = 0.0 # rms in radians, applied to both Rx/Tx identically
 
     FADING = True
+    FADE_FREQ = 500      # Hz
+    FADE_SIGMA = 2.0     # Standard deviations from mean corresponding to peak-peak value
+    FADE_PEAK_PEAK = 40  # dB - depends alot on simulation fs, fade freq, and fade sigma
 
     RX_LPF = 1.0*BW # Corner, AA filter/Interference rejection
     RX_LPF_TYPE = "butter" # "butter" or "cheby2"
@@ -50,7 +55,7 @@ if __name__ == "__main__":
     POOLS = 8
 
     PLOT_TX = False
-    PLOT_RX = False
+    PLOT_RX = True
     PLOT_RX_EYES = False
     PLOT_RX_EYE_SYNC_RECOVERY = True
     PLOT_RX_JITTER = False
@@ -63,19 +68,20 @@ if __name__ == "__main__":
     fig_num = 0
 
     # make message with data from bitstream in frame structure
-    message = generate_random_bitstream(length=N_BITS, bitrate=BIT_RATE)
     sync_codes = get_precomputed_codes()
     sync_code = sync_codes[SYNC_CODE_LEN]
+
+    message = generate_random_bitstream(length=N_BITS, bitrate=BIT_RATE)
     message = frame_data(message, sync_code, FRAME_PAYLOAD, BIT_RATE, BIT_RATE, sync_pos=SYNC_POS)
 
     # make GMSK baseband + RF
     gmsk_i, gmsk_q = generate_gmsk_baseband(message, OVERSAMPLING, bt=BT_TX,
                                             pulse_span=TX_FIR_SPAN)
-    gmsk_rf = upconvert_baseband(CARRIER, gmsk_i, gmsk_q)
+    gmsk_rf = upconvert_baseband(TX_LO, gmsk_i, gmsk_q, rms_phase_noise=LO_PHASE_NOISE)
 
     # make MSK baseband + RF for comparison
     msk_i, msk_q = generate_msk_baseband(message, OVERSAMPLING)
-    msk_rf = upconvert_baseband(CARRIER, msk_i, msk_q)
+    msk_rf = upconvert_baseband(TX_LO, msk_i, msk_q, rms_phase_noise=LO_PHASE_NOISE)
 
     #
     # Simulate channel (AWGN + fading)
@@ -106,14 +112,14 @@ if __name__ == "__main__":
 
     # Simulate fading
     if FADING:
-        gmsk_rf = gaussian_fade(gmsk_rf, f = 1000) # this is really arbitrary...
+        gmsk_rf = gaussian_fade(gmsk_rf, f=FADE_FREQ, peak_peak=FADE_PEAK_PEAK, n_sigma=FADE_SIGMA) # this is really arbitrary...
 
     #
     # Downconvert RF and demodulate 
     #
 
     rf_oversampling = int(round(gmsk_rf.fs/float(IQ_RATE))) # oversampling factor from baseband -> RF
-    rx_i, rx_q = downconvert_rf(CARRIER, gmsk_rf)
+    rx_i, rx_q = downconvert_rf(RX_LO, gmsk_rf, rms_phase_noise=LO_PHASE_NOISE)
 
     # downsample to original IQ rate
     rx_i = filter_and_downsample(rx_i, n=rf_oversampling)
@@ -238,8 +244,8 @@ if __name__ == "__main__":
         fig_num += 1
         plt.figure(fig_num)
         plt.subplot(1,2,1)
-        plot_td(sync_correl_kaiser, label="Kaiser BT=%.2f"%BT_COMPOSITE)
-        plot_td(sync_correl_rcos, label="RCOS BT=%.2f"%BT_COMPOSITE, title="- Sync Correlation")
+        plot_td(sync_correl_kaiser, label="Kaiser BT=%.2f"%BT_COMPOSITE, alpha=0.8)
+        plot_td(sync_correl_rcos, label="RCOS BT=%.2f"%BT_COMPOSITE, title="- Sync Correlation", alpha=0.8)
         plt.subplot(1,2,2)
         plot_histogram(sync_correl_kaiser, label="Kaiser BT=%.2f"%BT_COMPOSITE,
                        fit_normal=True, alpha=0.8, orientation="horizontal")

@@ -346,7 +346,7 @@ def plot_eye_density(signal, eye_vpp=None, raster_height = 500, _3d=False, log=T
                        cmap=cmap, interpolation='gaussian')
             if sample_lines and oversampling:
                 for n in range(oversampling):
-                    plt.axvline(n/float(oversampling), color="r")
+                    plt.axvline(n/float(oversampling), color="w")
 
         plt.xlabel("Time [UI]")
         plt.ylabel("Signal")
