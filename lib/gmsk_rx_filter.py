@@ -38,7 +38,8 @@ SQRTLN2 = sqrt(log(2.0))
 #   GMSK Rx/Tx Filter design
 #############################################################################
 
-def gmsk_tx_filter(k, m, bt, fs, dt=0.0, autocompute_fd=False, verbose=True, *args, **kwargs):
+def gmsk_tx_filter(k, m, bt, fs, dt=0.0, norm=False, autocompute_fd=False,
+                   verbose=True, *args, **kwargs):
     """ Design GMSK transmit filter
          k      : samples/symbol
          m      : pulse_span
@@ -61,7 +62,11 @@ def gmsk_tx_filter(k, m, bt, fs, dt=0.0, autocompute_fd=False, verbose=True, *ar
 
     # normalize filter coefficients such that the filter's
     # integral is pi/2
-    tx_fir *= pi/(2.0*sum(tx_fir))
+    if norm:
+        tx_fir *= 1.0/float(sum(tx_fir))
+        print("gmsk_tx", sum(tx_fir))
+    else: # pi/2 scale
+        tx_fir *= pi/(2.0*sum(tx_fir))
 
     return make_signal(td=tx_fir, fs=fs, force_even_samples=False,
                        name="gmsk_tx_fir_bt_%.2f"%bt, autocompute_fd=autocompute_fd, verbose=False)
@@ -124,7 +129,7 @@ def gmsk_matched_kaiser_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0,
 
 
 def kaiser_composite_tx_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0, delta=1e-3,
-                                  autocompute_fd=False, verbose=True, *args, **kwargs):
+                                  norm=False, autocompute_fd=False, verbose=True, *args, **kwargs):
     """ Filter given by gmsk_matched_kaiser_rx_filter() and gmsk_tx_filter() together
         i.e. Kaiser filer but with some out-of-band supression
         k      : samples/symbol
@@ -168,6 +173,10 @@ def kaiser_composite_tx_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0, delta=1
     comp_fd *= (np.abs(oob_reject_fd) - oob_reject_fd_min) / (np.abs(oob_reject_fd[0]))
     comp_fir = np.fft.fftshift(np.fft.ifft(comp_fd))
     comp_fir = np.real(comp_fir)*k
+    if norm:
+        comp_fir *= 1.0/float(sum(comp_fir))
+
+    print("kaiser", sum(comp_fir))
 
     return make_signal(td=comp_fir, fs=fs, force_even_samples=False,
                        name="kaiser_composite_fir_%.2f_bt_comp_%.2f"%(bt_tx, bt_composite),
@@ -232,7 +241,7 @@ def gmsk_matched_rcos_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0, delta=1e-
 
 
 def rcos_composite_tx_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0,
-                                delta=1e-3, autocompute_fd=False,
+                                delta=1e-3, autocompute_fd=False, norm=False,
                                 verbose=True, *args, **kwargs):
     """ Raised cosine response including out of band supression
         k      : samples/symbol
@@ -278,6 +287,8 @@ def rcos_composite_tx_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0,
     comp_fd *= (np.abs(oob_reject_fd) - oob_reject_fd_min) / (np.abs(oob_reject_fd[0]))
     comp_fir = np.fft.fftshift(np.fft.ifft(comp_fd))
     comp_fir = np.real(comp_fir)*k
+    if norm:
+        comp_fir *= 1.0/float(sum(comp_fir))
 
     return make_signal(td=comp_fir, fs=fs, force_even_samples=False,
                        name="rcos_composite_fir_%.2f_bt_comp_%.2f"%(bt_tx, bt_composite),

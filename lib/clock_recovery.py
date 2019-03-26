@@ -6,6 +6,7 @@ import numpy as np
 from lib.tools import *
 from lib.sync import make_sync_fir, detect_sync
 from lib.transforms import fir_correlate
+from copy import copy
 import math
 
 
@@ -22,9 +23,9 @@ def frame_sync_recovery(signal, sync_code, pulse_fir, payload_len, oversampling,
     edge_center_delta = int(oversampling/2)
     for sync_index in peak_indices:
         if sync_pos == "center":
-            lower = sync_index - c_offset
+            lower = sync_index - c_offset - edge_center_delta
             lower = 0 if lower < 0 else lower
-            upper = sync_index + s_len + c_offset
+            upper = sync_index + s_len + c_offset - edge_center_delta
             upper = n_samples if upper > n_samples else upper
             for n in range(sync_index-c_offset, sync_index+s_len+c_offset, oversampling):
                 crossing = n - edge_center_delta
@@ -38,6 +39,9 @@ def frame_sync_recovery(signal, sync_code, pulse_fir, payload_len, oversampling,
                 crossing = n - edge_center_delta
                 if crossing >= lower and crossing < upper:
                     crossings.append(crossing)
+    diff = np.diff(crossings)
+    print(list(set(diff)))
+    print(np.argmin(diff-16))
     return np.array(crossings)
 
 
@@ -125,27 +129,36 @@ def constant_f_clk_crossings(clk_period, clk_phase, uis):
 
 @timer
 def get_tie(signal, bits_per_sym = 1, interp_factor=10, interp_span=128,
-            remove_ends=100, recovery="constant_f", est_const_f=True): # "constant_f" 
-    td = signal.td[remove_ends:]
-    td = td[:-remove_ends]
+            remove_ends=100, recovery="constant_f", est_const_f=True,
+            sync_code=None, pulse_fir=None, payload_len= None,
+            sync_pos="center", oversampling=None):
+    _signal = copy(signal)
+    _signal.td = _signal.td[remove_ends:]
+    _signal.td = _signal.td[:-remove_ends]
+    td = _signal.td
     interpolated = sinx_x_interp(td, interp_factor, interp_span)
-    data_crossings = crossing_times(interpolated)
     ui_samples = interp_factor*signal.fs*bits_per_sym/float(signal.bitrate)
     if recovery == "constant_f":
         clk_crossings, clk_period, clk_phase = constant_f_recovery(interpolated, ui_samples, est_const_f)
     elif recovery == "pll_second_order":
         clk_crossings, clk_period, clk_phase = pll_so_recovery(interpolated, ui_samples)
         #cdr_lock_index = int(settle_tcs*4.0/(damping*f3db)/(1/sampling_rate))
+    elif recovery == "frame_sync":
+        clk_crossings = frame_sync_recovery(_signal, sync_code, pulse_fir, payload_len,
+                                        oversampling, sync_pos="center")
+        clk_crossings *= interp_factor
+        ui_samples = oversampling*interp_factor
     data_crossings = crossing_times(interpolated)
     return compute_tie_trend(clk_crossings, data_crossings, ui_samples)
 
 
 def compute_tie_trend(clk_crossings, data_crossings, ui_samples):
     deltas_uis, deltas_samples = get_crossing_deltas(data_crossings, ui_samples)
-
     tie_trend_at_crossings = []
     clk_cycle = 0
     for n, ui_delta in enumerate(deltas_uis):
+        if clk_cycle >= len(clk_crossings):
+            break
         tie_trend_at_crossings.append(data_crossings[n] - clk_crossings[int(clk_cycle)])
         clk_cycle += ui_delta
 

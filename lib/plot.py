@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from lib.tools import *
 from lib.clock_recovery import *
+from lib.sync import detect_sync
 from lib._signal import EyeData
 import math
 from copy import copy
@@ -84,15 +85,34 @@ def plot_histogram(signal, bins=100, fit_normal=False, orientation="vertical", a
         stdev = np.std(signal.td)
         if orientation == "vertical":
             x = np.linspace(np.amin(signal.td), np.amax(signal.td), bins)
-            y = norm.pdf(x-1.0, mean, stdev)
+            y = norm.pdf(x, mean, stdev)
         elif orientation == "horizontal":
             y = np.linspace(np.amin(signal.td), np.amax(signal.td), bins)
-            x = norm.pdf(y-1.0, mean, stdev)
-        plt.plot(x, y, label="mu=%f stdev=%f"%(mean,stdev), alpha=alpha)
+            x = norm.pdf(y, mean, stdev)
+        s = label + "\n" if label != "" else ""
+        plt.plot(x, y, label="%smu=%f\nstdev=%f"%(s,mean,stdev), alpha=alpha)
     if label != "" or fit_normal:
         plt.legend()
 
     return hist
+
+def plot_sync_detect_bellcurve(correlation, sync_code, payload_len, oversampling,
+                               orientation="vertical", ax_label="[U]", label="",
+                               title="", alpha=1.0, verbose=True, *args, **kwargs):
+    indices, vals = detect_sync(correlation, sync_code, payload_len, oversampling)
+
+    mean = np.mean(vals)
+    stdev = np.std(vals)
+    if orientation == "vertical":
+        x = np.linspace(mean-5.0*stdev, mean+5.0*stdev, 51)
+        y = norm.pdf(x, mean, stdev)/norm.pdf(mean, mean, stdev)
+    elif orientation == "horizontal":
+        y = np.linspace(mean-5.0*stdev, mean+5.0*stdev, 51)
+        x = norm.pdf(y, mean, stdev)/norm.pdf(mean, mean, stdev)
+    s = label + "\n" if label != "" else ""
+    plt.plot(x, y, label="%smu=%f\nstdev=%f"%(s,mean,stdev), alpha=alpha)
+    if label != "" or fit_normal:
+        plt.legend()
 
 ###################################################################################
 #   IQ PHASE / MAGNITUDE
@@ -381,11 +401,13 @@ def rasterize(times, slices, raster_height, raster_width, uis_in_waveform, y_pad
 ###################################################################################
 
 def plot_tie(signal, bits_per_sym = 1, alpha=1.0, interp_factor=10, interp_span=128, remove_ends=100,
-             recovery="constant_f", est_const_f=False, label="", title="", verbose=True, *args, **kwargs):
+             recovery="constant_f", est_const_f=False, sync_code=None, pulse_fir=None, payload_len=None,
+             sync_pos="center", oversampling=None, label="", title="", verbose=True, *args, **kwargs):
     if verbose:
         print("\n* Plotting Total Interval Error (TIE) trend.")
         print("\tSignal.name = %s"%signal.name)
-    tie = get_tie(signal, bits_per_sym, interp_factor, interp_span, remove_ends, recovery, est_const_f)
+    tie = get_tie(signal, bits_per_sym, interp_factor, interp_span, remove_ends, recovery,
+                  est_const_f, sync_code, pulse_fir, payload_len, sync_pos, oversampling)
     t = np.arange(len(tie))*bits_per_sym/float(signal.bitrate)
     plt.plot(t, tie, label=label, alpha=alpha)
     plt.title("Clock-Data Jitter Total Interval Error (TIE) "+title)
@@ -394,14 +416,38 @@ def plot_tie(signal, bits_per_sym = 1, alpha=1.0, interp_factor=10, interp_span=
     if label != "":
         plt.legend()
 
+def plot_jitter_spectrum(signal, bits_per_sym = 1, alpha=1.0, interp_factor=10, interp_span=128, remove_ends=100,
+             recovery="constant_f", est_const_f=False, sync_code=None, pulse_fir=None, payload_len=None,
+             sync_pos="center", oversampling=None, label="", title="", verbose=True, *args, **kwargs):
+    if verbose:
+        print("\n* Plotting Jitter Spectum.")
+        print("\tSignal.name = %s"%signal.name)
+    tie = get_tie(signal, bits_per_sym, interp_factor, interp_span, remove_ends, recovery,
+                  est_const_f, sync_code, pulse_fir, payload_len, sync_pos, oversampling)
+    samples = len(tie)
+    if samples%2 == 1: #odd
+        tie = tie[:-1]
+        samples -= 1
+
+    f = (np.arange(samples) - samples/2.0)*(signal.bitrate/float(bits_per_sym*samples))
+    jitter_spectrum = 20*np.log10(np.fft.fftshift(np.abs(np.fft.fft(tie))))
+    plt.plot(f, jitter_spectrum, label=label, alpha=alpha)
+    plt.title("Clock-Data Jitter Spectrum "+title)
+    plt.xlabel("Frequency [Hz]")
+    plt.ylabel("Spectral Density [s^2/Hz]")
+    if label != "":
+        plt.legend()
+
 
 def plot_jitter_histogram(signal, bins=100, alpha=1.0, bits_per_sym = 1, interp_factor=10,
                           interp_span=128, remove_ends=100, recovery="constant_f", est_const_f=False,
-                          label="", title="", verbose=True, *args, **kwargs):
+                          sync_code=None, pulse_fir=None, payload_len=None, sync_pos="center",
+                          oversampling=None, label="", title="", verbose=True, *args, **kwargs):
     if verbose:
         print("\n* Plotting Jitter Histogram.")
         print("\tSignal.name = %s"%signal.name)
-    tie = get_tie(signal, bits_per_sym, interp_factor, interp_span, remove_ends, recovery, est_const_f)
+    tie = get_tie(signal, bits_per_sym, interp_factor, interp_span, remove_ends, recovery,
+                  est_const_f, sync_code, pulse_fir, payload_len, sync_pos, oversampling)
     plt.hist(tie, bins=bins, density=True, label=label, alpha=alpha)
     plt.title("Clock-Data Jitter Distribution "+title)
     plt.xlabel("Time [UI]")
