@@ -40,8 +40,6 @@ def frame_sync_recovery(signal, sync_code, pulse_fir, payload_len, oversampling,
                 if crossing >= lower and crossing < upper:
                     crossings.append(crossing)
     diff = np.diff(crossings)
-    print(list(set(diff)))
-    print(np.argmin(diff-16))
     return np.array(crossings)
 
 

@@ -69,9 +69,9 @@ if __name__ == "__main__":
     RECOVERY_METHOD = "frame_sync"  # {"frame_sync", "constant_f", "edge"}, use "frame_sync" if data if framed, else "constant_f"
 
     PLOT_TX = True                  # Plot Tx-related plots (Constellation, Phase/magnitude of IQ, spectrum)
-    PLOT_RX = False                 # Plot Rx-related plots (Constellation, IQ Phase/magnitude, raw demodulated data)
-    PLOT_RX_EYES = False            # Plot Rx eye diagrams
-    PLOT_RX_JITTER = False          # Plot jitter plots (Total interval error, jitter distribution, jitter spectrum)
+    PLOT_RX = True                  # Plot Rx-related plots (Constellation, IQ Phase/magnitude, raw demodulated data)
+    PLOT_RX_EYES = True             # Plot Rx eye diagrams
+    PLOT_RX_JITTER = True           # Plot jitter plots (Total interval error, jitter distribution, jitter spectrum)
     PLOT_RX_FILTER = False          # Plot Rx filter taps and responses
     PLOT_RX_DATA_PSD = False        # Plot Rx data PSD
     PLOT_SYNC = True                # Plot Sync-related plots (Correlation of sync to data, histogram of aforementioned and detected syncs)

@@ -64,7 +64,6 @@ def gmsk_tx_filter(k, m, bt, fs, dt=0.0, norm=False, autocompute_fd=False,
     # integral is pi/2
     if norm:
         tx_fir *= 1.0/float(sum(tx_fir))
-        print("gmsk_tx", sum(tx_fir))
     else: # pi/2 scale
         tx_fir *= pi/(2.0*sum(tx_fir))
 
@@ -175,8 +174,6 @@ def kaiser_composite_tx_rx_filter(k, m, bt_tx, bt_composite, fs, dt=0.0, delta=1
     comp_fir = np.real(comp_fir)*k
     if norm:
         comp_fir *= 1.0/float(sum(comp_fir))
-
-    print("kaiser", sum(comp_fir))
 
     return make_signal(td=comp_fir, fs=fs, force_even_samples=False,
                        name="kaiser_composite_fir_%.2f_bt_comp_%.2f"%(bt_tx, bt_composite),
