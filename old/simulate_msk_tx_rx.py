@@ -1,5 +1,7 @@
 """ Simulates Tx+Rx for GMSK
     Cole Nielsen 2019
+
+    NOTE: THIS HAS NOT BEEN KEPT UP TO DATE WITH THE STANDARD OF THE GMSK SIMULATION
 """
 import numpy as np
 import matplotlib.pyplot as plt
