@@ -124,6 +124,40 @@ def frame_data(signal, sync_code, payload_len, fs, bitrate, sync_pos="center", a
     return make_signal(td=td, fs=fs, bitrate=bitrate, name=signal.name+"_%db_frames_%db_sync"%(f_len, s_len),
                        autocompute_fd=autocompute_fd, verbose=False)
 
+
+def frame_data_bursts(signal, sync_code, payload_len, fs, bitrate, sync_pos="center", autocompute_fd=False,
+              verbose=True, *args, **kwargs):
+    """ Takes data and creates with frames with data payload and sync field
+        Bursts evenly spaced with specified bitrate, but symbol rate increased to fs
+        If sync_pos is "start":
+        |<-sync->|<---------------payload----------------->|
+        If sync_pos is "center":
+        |<------payload----->|<-sync->|<------paylod------>|
+
+        Will zero pad if not enough data passed to fill all frame
+    """
+    sync_code = np.array(sync_code)
+    n_frames = int(np.ceil(len(signal.td)/payload_len))
+    f_len = payload_len+len(sync_code) + int((fs-bitrate)/float(n_frames))
+    s_len = len(sync_code)
+    p_len = payload_len
+    message = np.zeros(int(n_frames*p_len))
+    message[:len(signal.td)] = signal.td
+    td = np.zeros(int(n_frames*f_len))
+    c_offset = int(payload_len/2.0)
+    for n in range(n_frames):
+        if sync_pos == "center":
+            td[n*f_len:n*f_len+c_offset] = message[n*p_len:n*p_len+c_offset]
+            td[n*f_len+c_offset:n*f_len+c_offset+s_len] = sync_code
+            td[n*f_len+c_offset+s_len:n*f_len+s_len+p_len] = message[n*p_len+c_offset:n*p_len+p_len]
+        elif sync_pos == "start":
+            td[n*f_len:n*f_len+s_len] = sync_code
+            td[n*f_len+s_len:n*f_len+f_len] = message[n*p_len:n*p_len+p_len]
+
+    return make_signal(td=td, fs=fs, bitrate=bitrate, name=signal.name+"_%db_frames_%db_sync"%(f_len, s_len),
+                       autocompute_fd=autocompute_fd, verbose=False)
+
+
 def detect_sync(signal, sync_code, payload_len, oversampling):
     f_len = oversampling*(len(sync_code)+payload_len)
     n_frames = int(np.floor(len(signal.td)/float(f_len)))

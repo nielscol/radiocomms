@@ -115,7 +115,7 @@ def grad_descent(f, args, params, conv_tol=1e-5, timeout=None):
             break
         grad_f = grad(f, args, params, deriv_step)
         f_slice = line_slice_f(f, grad_f, args, params)
-        gamma = gss(f_slice, "gamma", target=0, params={}, _min=0.0, _max=1.0, conv_tol=1e-5, norm='l1')
+        gamma = gss(f_slice, "gamma", target=0, params={}, _min=0.0, _max=1.0, conv_tol=conv_tol, norm='l1')
         last = copy(curr)
         for n, arg in enumerate(args):
             params[arg] = params[arg] - gamma*grad_f[n]

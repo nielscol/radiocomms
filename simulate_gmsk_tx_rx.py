@@ -34,7 +34,7 @@ if __name__ == "__main__":
     BW = BITRATE/(SPECTRAL_EFF)     # theoretical signal bandwidth
     TX_LO = 5.0*BW                  # Tx carrier, do not set too high as the simulation points will grow large
     RX_LO = 5.0*BW                  # Rx carrier
-    LO_PHASE_NOISE = 0.0            # Rms in radians, applied to both Rx/Tx LO identically
+    LO_PHASE_NOISE = 0.1            # Rms in radians, applied to both Rx/Tx LO identically
 
     SHOW_MSK_TX = False             # Will plot spectrum of MSK at parameters as GMSK for comparison
 
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     INTERFERER_OVERSAMPLING = OVERSAMPLING      # Oversampling rate
     INTERFERER_CORREL_SYNC = False              # Should the sync be the same as the GMSK?
 
-    AGWN_RMS = 0.0707               # 0.00707 -> 40 dB SNR, 0.0707 -> 20 dB, 0.223 -> 10 dB, 0.4 -> 6 dB
+    AGWN_RMS = 0.4               # 0.00707 -> 40 dB SNR, 0.0707 -> 20 dB, 0.223 -> 10 dB, 0.4 -> 6 dB
     FADING = True                   # Apply fading to the channel?
     FADE_FREQ = 500                 # Hz - each cycle includes a min and max peak corresponding to sigma
     FADE_SIGMA = 2.0                # Standard deviations from mean corresponding to peak-peak value, probably keep at ~2.0
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     _3D_EYE = False                 # Plot eye diagrams in 3D!
     EYE_VPP = 3.0                   # Set if you want to force a p-p eye value. Range of plot will be 1.25*EYE_VPP
     CMAP = "nipy_spectral"          # Color map of plot, best options are (1) "nipy_spectral" and (2) "inferno"
-    SAMPLE_LINES = True             # Draw lines corresponding to where samples occur
+    SAMPLE_LINES = False            # Draw lines corresponding to where samples occur
     POOLS = 8                       # For using multiple processes to compute eyes. POOLS = # logical processors on your computer
 
     RECOVERY_METHOD = "frame_sync"  # {"frame_sync", "constant_f", "edge"}, use "frame_sync" if data if framed, else "constant_f"
@@ -72,8 +72,8 @@ if __name__ == "__main__":
     PLOT_RX = True                  # Plot Rx-related plots (Constellation, IQ Phase/magnitude, raw demodulated data)
     PLOT_RX_EYES = True             # Plot Rx eye diagrams
     PLOT_RX_JITTER = True           # Plot jitter plots (Total interval error, jitter distribution, jitter spectrum)
-    PLOT_RX_FILTER = False          # Plot Rx filter taps and responses
-    PLOT_RX_DATA_PSD = False        # Plot Rx data PSD
+    PLOT_RX_FILTER = True           # Plot Rx filter taps and responses
+    PLOT_RX_DATA_PSD = True         # Plot Rx data PSD
     PLOT_SYNC = True                # Plot Sync-related plots (Correlation of sync to data, histogram of aforementioned and detected syncs)
 
     #

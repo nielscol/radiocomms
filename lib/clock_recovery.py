@@ -6,6 +6,8 @@ import numpy as np
 from lib.tools import *
 from lib.sync import make_sync_fir, detect_sync
 from lib.transforms import fir_correlate
+from lib.optimize import grad_descent
+from scipy.stats import norm
 from copy import copy
 import math
 
@@ -169,4 +171,89 @@ def compute_tie_trend(clk_crossings, data_crossings, ui_samples):
             tie_trend.append(curr_tie + m*step)
 
     return np.array(tie_trend)/float(ui_samples)
+
+
+################################################################################
+# Below was an attempt to curve fit a sum of gaussians to a jitter histogram...
+# There are N*3 variables for N gaussians, it turns out this is hard to do
+# I had bad luck with getting any convergence (probably due to tons of minima)
+################################################################################
+
+
+def fit_n_weighted_gaussians(data, bins=100, n_gaussian=None, auto_ratio=10,
+                                   timeout=10.0):
+    hist = np.histogram(data, bins, density=True)
+    if not n_gaussian:
+        n_gaussian = int(bins/auto_ratio)
+    BINS_X = np.array(hist[1])
+    BINS_Y = np.array(hist[0])
+    BINS_X = BINS_X[:-1] + 0.5*np.diff(BINS_X)
+    # come up with initial starting point, N gaussian with approximately uniform
+    # distribution in range of p-p observed jitter
+    mu_0s = np.linspace(np.amin(BINS_X), np.amax(BINS_X), n_gaussian)
+    delta = np.mean(np.diff(mu_0s))
+    FWHM = 2.355
+    sigma_0 = 2.0*delta/FWHM    # initial standard deviation
+    a_0 = 1.0/float(n_gaussian) # initial scaling
+    # make dictionary with n-gaussian fit parameters
+    params = {}
+    for n, mu in enumerate(mu_0s):
+        params["a_%d"%n] = a_0
+        #params["mu_%d"%n] = mu
+        params["sigma_%d"%n] = sigma_0
+    p = copy(params)
+    for n, mu in enumerate(mu_0s):
+        p["mu_%d"%n] = mu
+    p["n"] = n_gaussian
+    #plt.hist(data, bins=100)
+    #plt.plot(BINS_X, v_n_gaussians_model(BINS_X, p))
+    #plt.show()
+
+    def model(x, **kwargs):
+        """ Computes value of n-gaussian model at x
+        """
+        s = 0.0
+        for n in range(n_gaussian):
+            a = kwargs["a_%d"%n]
+            a = abs(a)
+            mu = mu_0s[n]
+            sigma = kwargs["sigma_%d"%n]
+            sigma = abs(sigma)
+            ps = a*norm.pdf(x, mu, sigma)
+            if np.isnan(ps):
+                print(a, x, mu, sigma)
+                s = np.inf
+                break
+            else: s += ps
+            #print(a,x,mu,sigma,a*norm.pdf(x, mu, sigma))
+        return s
+
+    def f(**kwargs):
+        """ Cost function
+        """
+        sse = 0.0
+        for n, bin_x in enumerate(BINS_X):
+            bin_y = BINS_Y[n]
+            sse += (bin_y - model(bin_x, **kwargs))**2
+        print("**", sse)
+        return sse
+    # Use gradient descent to fit model to distribution
+    fitted = grad_descent(f, list(params), params, timeout=timeout, conv_tol=1e-3)
+    fitted["n"] = n_gaussian
+    for n, mu in enumerate(mu_0s):
+        fitted["mu_%d"%n] = mu
+    return fitted
+
+def n_gaussians_model(x, params):
+    """ Computes value of n-gaussian model at x
+    """
+    s = 0.0
+    for n in range(params["n"]):
+        a = abs(params["a_%d"%n])
+        mu = params["mu_%d"%n]
+        sigma = abs(params["sigma_%d"%n])
+        s += a*norm.pdf(x, mu, sigma)
+    return s
+
+v_n_gaussians_model = np.vectorize(n_gaussians_model, otypes=[float], excluded=["params"])
 

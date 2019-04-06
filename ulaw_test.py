@@ -56,14 +56,30 @@ freq = 100
 samples = 1600
 fs = 8000
 
+a = (np.arange(2**10, dtype=np.int64)-2**9)*2**6
+b = v_ul_comp(a)
+c = v_ul_exp(b)
+s = ""
+for n, val in enumerate(a):
+    print("%d --> %d"%(val,c[n]))
+    s += ("%d --> %d\n"%(val,c[n]))
+
+f = open("example_u_law_in_out.txt", "w")
+f.write(s)
+f.close()
+
 time = np.arange(samples)/float(fs)
 
 amplitude = (2**bits-1)/2.0
 signal = np.array(np.rint(amplitude + amplitude*np.sin(2*math.pi*freq*time))-2**(bits-1),dtype=np.int16)
-plt.plot(signal)
 
 comp = v_ul_comp(signal)
+
+plt.figure(1)
+plt.plot(comp)
 recov = v_ul_exp(comp)
 
+plt.figure(2)
+plt.plot(signal)
 plt.plot(recov)
-plt.show()
+#plt.show()
