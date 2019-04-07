@@ -139,17 +139,19 @@ def frame_data_bursts(signal, sync_code, payload_len, fs, bitrate, sync_pos="cen
     sync_code = np.array(sync_code)
     n_frames = int(np.ceil(len(signal.td)/payload_len))
     f_len = payload_len+len(sync_code) + int((fs-bitrate)/float(n_frames))
+    f_len_error = (fs - bitrate)/float(n_frames) - int((fs-bitrate)/float(n_frames))
     s_len = len(sync_code)
     p_len = payload_len
     message = np.zeros(int(n_frames*p_len))
     message[:len(signal.td)] = signal.td
-    td = np.zeros(int(n_frames*f_len))
+    td = np.zeros(int(n_frames*(f_len+f_len_error)))
     c_offset = int(payload_len/2.0)
     for n in range(n_frames):
+        error = int(n*f_len_error)
         if sync_pos == "center":
-            td[n*f_len:n*f_len+c_offset] = message[n*p_len:n*p_len+c_offset]
-            td[n*f_len+c_offset:n*f_len+c_offset+s_len] = sync_code
-            td[n*f_len+c_offset+s_len:n*f_len+s_len+p_len] = message[n*p_len+c_offset:n*p_len+p_len]
+            td[error+n*f_len:error+n*f_len+c_offset] = message[n*p_len:n*p_len+c_offset]
+            td[error+n*f_len+c_offset:error+n*f_len+c_offset+s_len] = sync_code
+            td[error+n*f_len+c_offset+s_len:error+n*f_len+s_len+p_len] = message[n*p_len+c_offset:n*p_len+p_len]
         elif sync_pos == "start":
             td[n*f_len:n*f_len+s_len] = sync_code
             td[n*f_len+s_len:n*f_len+f_len] = message[n*p_len:n*p_len+p_len]
