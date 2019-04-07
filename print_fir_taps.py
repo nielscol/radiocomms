@@ -6,7 +6,7 @@ BT_TX = 0.3
 BT_COMPOSITE = 1.0
 OVERSAMPLING = 8
 PULSE_SPAN = 8
-IQ_RATE = 83000
+IQ_RATE = 79680
 
 def print_taps(fir):
     print("\tTap #\tValue")
