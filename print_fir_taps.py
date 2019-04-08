@@ -1,6 +1,8 @@
 from lib.gmsk_rx_filter import gmsk_matched_kaiser_rx_filter, gmsk_matched_rcos_rx_filter, kaiser_composite_tx_rx_filter, rcos_composite_tx_rx_filter, gmsk_tx_filter
 from lib.sync import make_sync_fir, get_precomputed_codes
+from lib.plot import plot_td, plot_fd
 import numpy as np
+import matplotlib.pyplot as plt
 
 BT_TX = 0.3
 BT_COMPOSITE = 1.0
@@ -48,4 +50,7 @@ sync_code = sync_codes[SYNC_CODE_LEN]
 sync_fir_kaiser = make_sync_fir(sync_code, kaiser_fir, OVERSAMPLING)
 np.savetxt("matched_kaiser_bt_1_0.csv", fir_matched_kaiser.td, delimiter=",")
 np.savetxt("kaiser_sync_bt_1_0.csv", sync_fir_kaiser.td, delimiter=",")
+
+plt.plot(sync_fir_kaiser.td)
+plt.show()
 
