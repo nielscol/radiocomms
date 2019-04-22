@@ -78,7 +78,7 @@ def fir_filter(signal, fir, oversampling, remove_extra=True, autocompute_fd=Fals
         raise Exception("Incompatible sampling frequencies for FIR signal (%f) and signal to be filtered (%f)"%(fir.fs, signal.fs))
     filt_td = np.convolve(signal.td, fir.td, mode="full")/float(oversampling)
     if remove_extra:
-        filt_td = filt_td[int((len(fir.td)-1)/2):]
+        filt_td = filt_td[int(len(fir.td)-1):]
         filt_td = filt_td[:len(signal.td)]
     return make_signal(td=filt_td, fs=signal.fs, bitrate=signal.bitrate, name=signal.name+"_filtered_"+fir.name, autocompute_fd=autocompute_fd, verbose=False)
 
@@ -88,7 +88,7 @@ def fir_correlate(signal, fir, oversampling, remove_extra=True, autocompute_fd=F
         raise Exception("Incompatible sampling frequencies for FIR signal (%f) and signal to be correlated (%f)"%(fir.fs, signal.fs))
     filt_td = np.correlate(signal.td, fir.td, mode="full")/float(oversampling)
     if remove_extra:
-        filt_td = filt_td[int((len(fir.td)-1)/2):]
+        filt_td = filt_td[int(len(fir.td)-1):]
         filt_td = filt_td[:len(signal.td)]
     return make_signal(td=filt_td, fs=signal.fs, bitrate=signal.bitrate, name=signal.name+"_correlated_"+fir.name, autocompute_fd=autocompute_fd, verbose=False)
 

@@ -4,7 +4,7 @@
 
     Cole Nielsen 2019
 """
-mport matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import numpy as np
 import math
 from lib._signal import wav_to_signal, save_signal_to_wav

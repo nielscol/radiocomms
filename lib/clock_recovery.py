@@ -10,9 +10,9 @@ from lib.optimize import grad_descent
 from scipy.stats import norm
 from copy import copy
 import math
+import matplotlib.pyplot as plt
 
-
-def frame_sync_recovery(signal, sync_code, pulse_fir, payload_len, oversampling, sync_pos="center"):
+def frame_sync_recovery(signal, sync_code, pulse_fir, payload_len, oversampling, fir_span, sync_pos="center", thresh=None):
     sync_fir = make_sync_fir(sync_code, pulse_fir, oversampling)
     correlation = fir_correlate(signal, sync_fir, oversampling)
     peak_indices, peak_values = detect_sync(correlation, sync_code, payload_len, oversampling)
@@ -23,21 +23,28 @@ def frame_sync_recovery(signal, sync_code, pulse_fir, payload_len, oversampling,
     f_len = s_len + p_len
     c_offset = int(p_len/2.0)
     edge_center_delta = int(oversampling/2)
+    fir_offset = int(oversampling*fir_span/2)
     for sync_index in peak_indices:
-        if sync_pos == "center":
-            lower = sync_index - c_offset - edge_center_delta
+        print(correlation.td[sync_index])
+        if thresh and abs(correlation.td[sync_index]) > thresh: run = True
+        elif thresh == None: run = True
+        else: run = False
+
+        if run and sync_pos == "center":
+            lower = sync_index - c_offset - edge_center_delta + fir_offset
             lower = 0 if lower < 0 else lower
-            upper = sync_index + s_len + c_offset - edge_center_delta
+            upper = sync_index + s_len + c_offset - edge_center_delta + fir_offset
             upper = n_samples if upper > n_samples else upper
-            for n in range(sync_index-c_offset, sync_index+s_len+c_offset, oversampling):
+            y = signal.td[sync_index-c_offset+fir_offset:sync_index+s_len+c_offset+fir_offset]
+            for n in range(sync_index-c_offset-fir_offset, sync_index+s_len+c_offset-fir_offset, oversampling):
                 crossing = n - edge_center_delta
                 if crossing >= lower and crossing < upper:
                     crossings.append(crossing)
-        elif sync_pos == "start":
-            lower = sync_index
-            upper = sync_index + f_len
+        elif run and sync_pos == "start":
+            lower = sync_index + fir_offset
+            upper = sync_index + f_len + fir_offset
             upper = n_samples if upper > n_samples else upper
-            for n in range(sync_index, sync_index+f_len, oversampling):
+            for n in range(sync_index+fir_offset, sync_index+f_len+fir_offset, oversampling):
                 crossing = n - edge_center_delta
                 if crossing >= lower and crossing < upper:
                     crossings.append(crossing)

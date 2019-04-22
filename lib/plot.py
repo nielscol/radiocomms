@@ -258,7 +258,8 @@ def plot_eye_density(signal, eye_vpp=None, raster_height = 500, _3d=False, log=T
                      recovery="constant_f", est_const_f=False, title="", pools=None,
                      cmap="inferno", verbose=True, sample_lines=False, oversampling=None,
                      plot=True, previous_data=None, sync_code=None, pulse_fir=None,
-                     payload_len= None, sync_pos="center", *args, **kwargs):
+                     payload_len= None, sync_pos="center", thresh=None, fir_span=None,
+                     *args, **kwargs):
     """ Plots eye diagram as intensity graded (density)
     """
     if verbose:
@@ -281,7 +282,8 @@ def plot_eye_density(signal, eye_vpp=None, raster_height = 500, _3d=False, log=T
         times, slices = slice_pll_so(interpolated, ui_samples)
     elif recovery == "frame_sync":
         times, slices = slice_frame_sync(_signal, interpolated, sync_code, pulse_fir,
-                                         payload_len, oversampling, interp_factor, sync_pos)
+                                         payload_len, oversampling, interp_factor,
+                                         fir_span, sync_pos, thresh)
     # auto set vertical scale if not given in arguments
     _min = 0.0
     _max = 0.0
@@ -481,12 +483,12 @@ def slice_edge_triggered(td, ui_samples):
 
 @timer
 def slice_frame_sync(signal, interpolated, sync_code, pulse_fir, payload_len,
-                     oversampling, interp_factor, sync_pos):
+                     oversampling, interp_factor, fir_span, sync_pos, thresh=None):
     """ Slices data based off of correlation to sync pattern in framed data
     """
     # get crossings UNINTERPOLATED
     crossings = frame_sync_recovery(signal, sync_code, pulse_fir, payload_len,
-                                    oversampling, sync_pos="center")
+                                    oversampling, fir_span, sync_pos, thresh)
     # multiply crossings with oversampling so it corresponds to interpolated waveform
     crossings_upsampled = crossings*interp_factor
     times, slices = segment_data(interpolated, crossings_upsampled, oversampling*interp_factor)

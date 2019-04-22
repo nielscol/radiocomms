@@ -125,7 +125,7 @@ def frame_data(signal, sync_code, payload_len, fs, bitrate, sync_pos="center", a
                        autocompute_fd=autocompute_fd, verbose=False)
 
 
-def frame_data_bursts(signal, sync_code, payload_len, fs, bitrate, sync_pos="center", autocompute_fd=False,
+def frame_data_bursts(signal, sync_code, payload_len, fs, bitrate, fps, sync_pos="center", autocompute_fd=False,
               verbose=True, *args, **kwargs):
     """ Takes data and creates with frames with data payload and sync field
         Bursts evenly spaced with specified bitrate, but symbol rate increased to fs
@@ -138,8 +138,8 @@ def frame_data_bursts(signal, sync_code, payload_len, fs, bitrate, sync_pos="cen
     """
     sync_code = np.array(sync_code)
     n_frames = int(np.ceil(len(signal.td)/payload_len))
-    f_len = payload_len+len(sync_code) + int((fs-bitrate)/float(n_frames))
-    f_len_error = (fs - bitrate)/float(n_frames) - int((fs-bitrate)/float(n_frames))
+    f_len = payload_len+len(sync_code) + int((fs-bitrate)/float(fps))
+    f_len_error = (fs - bitrate)/float(fps) - int((fs-bitrate)/float(fps))
     s_len = len(sync_code)
     p_len = payload_len
     message = np.zeros(int(n_frames*p_len))

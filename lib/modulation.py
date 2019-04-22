@@ -56,7 +56,7 @@ v_gmsk_pulse = np.vectorize(gmsk_pulse, otypes=[float])
 
 
 def generate_gmsk_baseband(message, oversampling, bt, pulse_span, name="",
-                           binary_message=True, autocompute_fd=False,
+                           binary_message=True, keep_extra=False, autocompute_fd=False,
                            verbose=True, *args, **kwargs):
     """ Generates I/Q signals according to GMSK modulation.
         Args:
@@ -83,9 +83,10 @@ def generate_gmsk_baseband(message, oversampling, bt, pulse_span, name="",
     upsampled[np.arange(len(message.td))*oversampling] = _message
     upsampled = np.convolve(upsampled, tx_fir, mode="full")
     # remove extra samples from convolution:
-    extra = len(upsampled) - len(message.td)*oversampling
-    upsampled = upsampled[int(extra/2):]
-    upsampled = upsampled[:len(message.td)*oversampling]
+    if not keep_extra:
+        extra = len(upsampled) - len(message.td)*oversampling
+        upsampled = upsampled[int(extra/2):]
+        upsampled = upsampled[:len(message.td)*oversampling]
     # generate GMSK phase signal from baseband message
     gmsk_phase = np.cumsum(upsampled)
     # Generate I/Q baseband components

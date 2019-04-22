@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 BT_TX = 0.3
 BT_COMPOSITE = 1.0
 OVERSAMPLING = 8
-PULSE_SPAN = 8
+PULSE_SPAN = 12
 IQ_RATE = 79680
 
 def print_taps(fir):
@@ -48,8 +48,8 @@ SYNC_CODE_LEN = 24
 sync_codes = get_precomputed_codes()
 sync_code = sync_codes[SYNC_CODE_LEN]
 sync_fir_kaiser = make_sync_fir(sync_code, kaiser_fir, OVERSAMPLING)
-np.savetxt("matched_kaiser_bt_1_0.csv", fir_matched_kaiser.td, delimiter=",")
-np.savetxt("kaiser_sync_bt_1_0.csv", sync_fir_kaiser.td, delimiter=",")
+np.savetxt("matched_kaiser_bt_1_0_span_12.csv", fir_matched_kaiser.td, delimiter=",")
+np.savetxt("kaiser_sync_bt_1_0_span_12.csv", sync_fir_kaiser.td, delimiter=",")
 
 plt.plot(sync_fir_kaiser.td)
 plt.show()
